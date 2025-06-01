@@ -1,0 +1,13 @@
+fastapi==0.115.12
+uvicorn==0.34.2
+python-dotenv==1.1.0
+httpx==0.28.1
+sse-starlette==2.1.0
+pydantic==2.11.4
+zep-cloud==2.0.0
+packaging>=25.0
+python-multipart==0.0.20
+openai>=1.35.0
+webrtcvad==2.0.10
+numpy>=1.24.0
+websockets>=11.0

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eva Agent - AG-UI Interface</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .chat-container {
+            height: 500px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            padding: 15px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #e1f5fe;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+            text-align: right;
+            align-self: flex-end;
+        }
+        .assistant-message {
+            background-color: #f0f0f0;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+        .status {
+            font-style: italic;
+            color: #666;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            background-color: #0277bd;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #01579b;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .typing-indicator {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #f0f0f0;
+            border-radius: 18px;
+            margin-bottom: 15px;
+        }
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: #666;
+            display: inline-block;
+            border-radius: 50%;
+            animation: typing 1.3s ease-in-out infinite;
+            margin-right: 5px;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.15s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.3s;
+            margin-right: 0;
+        }
+        @keyframes typing {
+            0% { transform: translateY(0px); }
+            25% { transform: translateY(-5px); }
+            50% { transform: translateY(0px); }
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: #f0f0f0;
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Eva Agent</h1>
+        <p>A simple AI agent built with AG-UI protocol</p>
+        <p><small>Powered by <span id="model-info">Loading model info...</span></small></p>
+    </header>
+    
+    <div class="chat-container" id="chat-container">
+        <div class="status">Eva is ready. Send a message to start the conversation.</div>
+    </div>
+    
+    <div class="input-container">
+        <input type="text" id="message-input" placeholder="Type your message here..." autocomplete="off">
+        <button id="send-button">Send</button>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const modelInfo = document.getElementById('model-info');
+        
+        // Load model info
+        fetch('/api/info')
+            .then(response => response.json())
+            .then(data => {
+                modelInfo.textContent = data.model;
+            })
+            .catch(error => {
+                console.error('Error fetching model info:', error);
+                modelInfo.textContent = 'Unknown model';
+            });
+        
+        let currentRunId = null;
+        let eventSource = null;
+        let isWaitingForResponse = false;
+        
+        // Function to add a message to the chat
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(isUser ? 'user-message' : 'assistant-message');
+            messageDiv.textContent = content;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Function to add a status message
+        function addStatus(content) {
+            const statusDiv = document.createElement('div');
+            statusDiv.classList.add('status');
+            statusDiv.textContent = content;
+            chatContainer.appendChild(statusDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Function to show typing indicator
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.classList.add('typing-indicator');
+            indicator.id = 'typing-indicator';
+            indicator.innerHTML = '<span></span><span></span><span></span>';
+            chatContainer.appendChild(indicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Function to remove typing indicator
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+        
+        // Function to handle sending a message
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+            
+            // Clear input and disable send button
+            messageInput.value = '';
+            sendButton.disabled = true;
+            isWaitingForResponse = true;
+            
+            // Add user message to chat
+            addMessage(message, true);
+            
+            try {
+                if (!currentRunId) {
+                    // Start a new conversation
+                    const response = await fetch('/agents/eva/runs', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            messages: [{ role: 'user', content: message }],
+                            stream: true
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Error starting conversation: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    currentRunId = data.run_id;
+                    
+                    // Start listening for events
+                    connectToEventStream(currentRunId);
+                } else {
+                    // Send message to existing conversation
+                    const response = await fetch(`/agents/eva/runs/${currentRunId}/input`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            input: message
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`Error sending message: ${response.statusText}`);
+                    }
+                }
+                
+                // Show typing indicator while waiting for response
+                showTypingIndicator();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addStatus(`Error: ${error.message}`);
+                sendButton.disabled = false;
+                isWaitingForResponse = false;
+            }
+        }
+        
+        // Function to connect to the event stream
+        function connectToEventStream(runId) {
+            // Close existing event source if any
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            // Create new event source
+            eventSource = new EventSource(`/agents/eva/runs/${runId}/events`);
+            let assistantResponse = '';
+            let currentAssistantMessage = null;
+            
+            // Event listeners
+            eventSource.onmessage = function(event) {
+                try {
+                    // Skip keep-alive messages (they start with a colon)
+                    if (event.data.startsWith(':')) return;
+                    
+                    const eventData = JSON.parse(event.data);
+                    const eventType = eventData.event_type;
+                    const data = eventData.data;
+                    
+                    switch (eventType) {
+                        case 'agent.status':
+                            if (data.status === 'waiting_for_input') {
+                                // Agent is waiting for input
+                                removeTypingIndicator();
+                                sendButton.disabled = false;
+                                isWaitingForResponse = false;
+                                // Reset for next message
+                                currentAssistantMessage = null;
+                                assistantResponse = '';
+                            }
+                            break;
+                            
+                        case 'agent.thinking':
+                            // Agent is thinking - reset for new message
+                            currentAssistantMessage = null;
+                            assistantResponse = '';
+                            break;
+                            
+                        case 'agent.message':
+                            // Remove typing indicator if it exists
+                            removeTypingIndicator();
+                            
+                            if (data.message && data.message.content) {
+                                if (data.message.is_partial) {
+                                    // Partial message - accumulate and create/update current message
+                                    assistantResponse += data.message.content;
+                                    
+                                    if (!currentAssistantMessage) {
+                                        // Create new assistant message element
+                                        currentAssistantMessage = document.createElement('div');
+                                        currentAssistantMessage.classList.add('message', 'assistant-message');
+                                        chatContainer.appendChild(currentAssistantMessage);
+                                    }
+                                    
+                                    // Update the current message content
+                                    currentAssistantMessage.textContent = assistantResponse;
+                                } else {
+                                    // Complete message - finalize
+                                    if (!currentAssistantMessage) {
+                                        // Create new message if doesn't exist
+                                        addMessage(data.message.content);
+                                    } else {
+                                        // Update existing message with final content
+                                        currentAssistantMessage.textContent = data.message.content;
+                                    }
+                                    
+                                    // Reset for next message
+                                    currentAssistantMessage = null;
+                                    assistantResponse = '';
+                                }
+                            }
+                            break;
+                            
+                        case 'agent.error':
+                            // Handle error
+                            removeTypingIndicator();
+                            addStatus(`Error: ${data.error}`);
+                            sendButton.disabled = false;
+                            isWaitingForResponse = false;
+                            break;
+                    }
+                    
+                    // Scroll to bottom
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    
+                } catch (error) {
+                    console.error('Error parsing event:', error, event.data);
+                }
+            };
+            
+            // Handle keep-alive messages
+            eventSource.addEventListener('message', function(e) {
+                if (e.data.startsWith(':')) {
+                    console.log('Received keep-alive');
+                }
+            });
+            
+            eventSource.onerror = function(error) {
+                console.error('EventSource error:', error);
+                
+                // Only show the error message if we're not in the middle of a page unload
+                if (!window.isUnloading) {
+                    removeTypingIndicator();
+                    
+                    // Try to reconnect a few times before showing the error
+                    if (!this.reconnectAttempts) {
+                        this.reconnectAttempts = 0;
+                    }
+                    
+                    if (this.reconnectAttempts < 3) {
+                        this.reconnectAttempts++;
+                        console.log(`Reconnect attempt ${this.reconnectAttempts}/3...`);
+                        // The browser will automatically try to reconnect
+                    } else {
+                        addStatus('Connection error. Please refresh the page to reconnect.');
+                        eventSource.close();
+                    }
+                    
+                    sendButton.disabled = false;
+                    isWaitingForResponse = false;
+                }
+            };
+            
+            // Add unload tracking to prevent error messages during page navigation
+            window.addEventListener('beforeunload', function() {
+                window.isUnloading = true;
+                if (eventSource) {
+                    eventSource.close();
+                }
+            });
+        }
+        
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        
+        messageInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Focus input on load
+        messageInput.focus();
+    </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Voice Test</title>
+</head>
+<body>
+    <h1>Simple Voice Test</h1>
+    <button id="test-voice">Test Voice Connection</button>
+    <div id="status"></div>
+    
+    <script>
+        document.getElementById('test-voice').addEventListener('click', async function() {
+            const status = document.getElementById('status');
+            status.innerHTML = 'Testing voice connection...';
+            
+            try {
+                // Test if WebSocket endpoint exists
+                const sessionId = 'test_' + Date.now();
+                const wsUrl = `ws://localhost:8000/ws/voice/${sessionId}`;
+                
+                status.innerHTML += '<br>Connecting to: ' + wsUrl;
+                
+                const ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    status.innerHTML += '<br>✓ WebSocket connected!';
+                    
+                    // Send init message
+                    const initMsg = {
+                        user_id: 'test_user',
+                        context: 'general',
+                        mode: 'friend'
+                    };
+                    ws.send(JSON.stringify(initMsg));
+                    status.innerHTML += '<br>✓ Init message sent';
+                };
+                
+                ws.onmessage = function(event) {
+                    status.innerHTML += '<br>✓ Received: ' + event.data;
+                };
+                
+                ws.onerror = function(error) {
+                    status.innerHTML += '<br>✗ WebSocket error: ' + error;
+                };
+                
+                ws.onclose = function(event) {
+                    status.innerHTML += '<br>WebSocket closed: ' + event.code + ' - ' + event.reason;
+                };
+                
+            } catch (error) {
+                status.innerHTML += '<br>✗ Error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

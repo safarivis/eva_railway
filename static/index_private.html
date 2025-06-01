@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eva Agent - Private Voice Mode</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .private-indicator {
+            background-color: #e91e63;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        .context-selector {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .context-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .context-label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 600;
+        }
+        select {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background-color: white;
+            cursor: pointer;
+            font-size: 14px;
+            min-width: 150px;
+        }
+        .voice-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .voice-button {
+            padding: 10px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .voice-button.recording {
+            background-color: #f44336;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+        .voice-button:not(.recording) {
+            background-color: #4caf50;
+            color: white;
+        }
+        .voice-button:hover {
+            transform: scale(1.1);
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
+        }
+        .chat-container {
+            height: 450px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: white;
+            padding: 15px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #e1f5fe;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+            text-align: right;
+        }
+        .assistant-message {
+            background-color: #f0f0f0;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+        .audio-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .status {
+            font-style: italic;
+            color: #666;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        #message-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        button {
+            padding: 12px 24px;
+            background-color: #0277bd;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #01579b;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .password-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .password-modal.show {
+            display: flex;
+        }
+        .password-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 90%;
+        }
+        .password-content h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .password-input {
+            width: 100%;
+            padding: 10px;
+            margin: 15px 0;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        .password-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .settings-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background-color: #666;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .settings-button:hover {
+            background-color: #555;
+        }
+        .voice-status {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .typing-indicator {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #f0f0f0;
+            border-radius: 18px;
+            margin-bottom: 15px;
+        }
+        .typing-indicator span {
+            height: 8px;
+            width: 8px;
+            background-color: #666;
+            display: inline-block;
+            border-radius: 50%;
+            animation: typing 1.3s ease-in-out infinite;
+            margin-right: 5px;
+        }
+        @keyframes typing {
+            0% { transform: translateY(0px); }
+            25% { transform: translateY(-5px); }
+            50% { transform: translateY(0px); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Eva Agent 
+            <span id="private-indicator" class="private-indicator" style="display: none;">🔒 Private Mode</span>
+        </h1>
+        <p>Voice-enabled AI assistant with private mode</p>
+        <p><small>Powered by <span id="model-info">Loading...</span></small></p>
+    </header>
+    
+    <button class="settings-button" onclick="showPasswordModal()">🔐 Private Settings</button>
+    
+    <div class="context-selector">
+        <div class="context-group">
+            <label class="context-label" for="context-select">Context</label>
+            <select id="context-select">
+                <option value="general">General</option>
+                <option value="work">Work</option>
+                <option value="personal">Personal (Private)</option>
+                <option value="creative">Creative</option>
+                <option value="research">Research</option>
+            </select>
+        </div>
+        <div class="context-group">
+            <label class="context-label" for="mode-select">Mode</label>
+            <select id="mode-select">
+                <option value="assistant">Assistant</option>
+                <option value="coach">Coach</option>
+                <option value="tutor">Tutor</option>
+                <option value="advisor">Advisor</option>
+                <option value="friend">Friend</option>
+                <option value="analyst">Analyst</option>
+                <option value="creative">Creative</option>
+            </select>
+        </div>
+        <div class="context-group">
+            <label class="context-label">Voice</label>
+            <div class="voice-controls">
+                <button id="voice-button" class="voice-button" title="Hold to record">
+                    🎤
+                </button>
+                <select id="voice-select" title="Choose TTS voice">
+                    <option value="">Default Voice</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="voice-status" id="voice-status"></div>
+    
+    <div class="chat-container" id="chat-container">
+        <div class="status">Eva is ready. Choose your settings and start chatting!</div>
+    </div>
+    
+    <div class="input-container">
+        <input type="text" id="message-input" placeholder="Type your message or use voice..." autocomplete="off">
+        <button id="send-button">Send</button>
+    </div>
+    
+    <!-- Password Modal -->
+    <div id="password-modal" class="password-modal">
+        <div class="password-content">
+            <h3>Private Mode Settings</h3>
+            <p id="password-status">Loading status...</p>
+            <input type="password" id="password-input" class="password-input" placeholder="Enter password">
+            <div class="password-buttons">
+                <button onclick="closePasswordModal()">Cancel</button>
+                <button id="password-action" onclick="handlePasswordAction()">Enable</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const PRIVATE_PASSWORD = "eva2415!";
+        let userId = localStorage.getItem('eva_user_id') || 'user_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('eva_user_id', userId);
+        
+        // State
+        let currentRunId = null;
+        let eventSource = null;
+        let isWaitingForResponse = false;
+        let authSessionId = null;
+        let privateEnabled = false;
+        let isRecording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let currentVoiceId = null;
+        
+        // Elements
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const modelInfo = document.getElementById('model-info');
+        const contextSelect = document.getElementById('context-select');
+        const modeSelect = document.getElementById('mode-select');
+        const voiceButton = document.getElementById('voice-button');
+        const voiceSelect = document.getElementById('voice-select');
+        const voiceStatus = document.getElementById('voice-status');
+        const privateIndicator = document.getElementById('private-indicator');
+        const passwordModal = document.getElementById('password-modal');
+        const passwordInput = document.getElementById('password-input');
+        const passwordStatus = document.getElementById('password-status');
+        const passwordAction = document.getElementById('password-action');
+        
+        // Initialize
+        async function initialize() {
+            // Load app info
+            try {
+                const response = await fetch('/api/info');
+                const data = await response.json();
+                modelInfo.textContent = `${data.model} | TTS: ${data.tts_enabled ? '✓' : '✗'} | STT: ${data.stt_enabled ? '✓' : '✗'}`;
+                
+                // Load available voices
+                if (data.tts_enabled) {
+                    loadVoices();
+                }
+            } catch (error) {
+                console.error('Error loading info:', error);
+            }
+            
+            // Check private mode status
+            checkPrivateStatus();
+            
+            // Set up voice recording
+            setupVoiceRecording();
+        }
+        
+        // Load available TTS voices
+        async function loadVoices() {
+            try {
+                const response = await fetch('/api/voices');
+                const voices = await response.json();
+                
+                voiceSelect.innerHTML = '<option value="">Default Voice</option>';
+                voices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.value = voice.voice_id;
+                    option.textContent = voice.name;
+                    voiceSelect.appendChild(option);
+                });
+                
+                // Load saved voice preference
+                const savedVoice = localStorage.getItem('eva_voice_id');
+                if (savedVoice) {
+                    voiceSelect.value = savedVoice;
+                    currentVoiceId = savedVoice;
+                }
+            } catch (error) {
+                console.error('Error loading voices:', error);
+            }
+        }
+        
+        // Voice selection handler
+        voiceSelect.addEventListener('change', function() {
+            currentVoiceId = this.value;
+            localStorage.setItem('eva_voice_id', currentVoiceId);
+        });
+        
+        // Setup voice recording
+        async function setupVoiceRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop()); // Stop immediately, just checking permission
+                
+                voiceButton.addEventListener('mousedown', startRecording);
+                voiceButton.addEventListener('mouseup', stopRecording);
+                voiceButton.addEventListener('mouseleave', stopRecording);
+                voiceButton.addEventListener('touchstart', startRecording);
+                voiceButton.addEventListener('touchend', stopRecording);
+            } catch (error) {
+                console.error('Microphone access denied:', error);
+                voiceStatus.textContent = 'Microphone access denied';
+                voiceButton.disabled = true;
+            }
+        }
+        
+        // Start recording
+        async function startRecording(e) {
+            e.preventDefault();
+            if (isRecording || isWaitingForResponse) return;
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    stream.getTracks().forEach(track => track.stop());
+                    
+                    // Convert to text
+                    voiceStatus.textContent = 'Converting speech to text...';
+                    try {
+                        const formData = new FormData();
+                        formData.append('file', audioBlob, 'recording.webm');
+                        
+                        const response = await fetch('/api/stt', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            messageInput.value = data.text;
+                            voiceStatus.textContent = 'Speech converted successfully';
+                            sendMessage();
+                        } else {
+                            voiceStatus.textContent = 'Error converting speech';
+                        }
+                    } catch (error) {
+                        console.error('STT error:', error);
+                        voiceStatus.textContent = 'Error converting speech';
+                    }
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                voiceButton.classList.add('recording');
+                voiceStatus.textContent = 'Recording...';
+            } catch (error) {
+                console.error('Recording error:', error);
+                voiceStatus.textContent = 'Recording error';
+            }
+        }
+        
+        // Stop recording
+        function stopRecording(e) {
+            e.preventDefault();
+            if (!isRecording || !mediaRecorder) return;
+            
+            mediaRecorder.stop();
+            isRecording = false;
+            voiceButton.classList.remove('recording');
+        }
+        
+        // Check private mode status
+        async function checkPrivateStatus() {
+            const context = contextSelect.value;
+            if (context !== 'personal') return;
+            
+            try {
+                const response = await fetch(`/api/users/${userId}/contexts/personal/password/status`);
+                const data = await response.json();
+                privateEnabled = data.password_required;
+                updatePrivateIndicator();
+            } catch (error) {
+                console.error('Error checking private status:', error);
+            }
+        }
+        
+        // Update private indicator
+        function updatePrivateIndicator() {
+            if (contextSelect.value === 'personal' && privateEnabled) {
+                privateIndicator.style.display = 'inline-block';
+            } else {
+                privateIndicator.style.display = 'none';
+            }
+        }
+        
+        // Context change handler
+        contextSelect.addEventListener('change', function() {
+            checkPrivateStatus();
+            if (currentRunId) {
+                if (confirm('Changing context will start a new conversation. Continue?')) {
+                    resetConversation();
+                } else {
+                    // Revert selection
+                    this.value = chatContainer.getAttribute('data-context') || 'general';
+                }
+            }
+        });
+        
+        // Show password modal
+        function showPasswordModal() {
+            checkPasswordStatus();
+            passwordModal.classList.add('show');
+            passwordInput.value = '';
+            passwordInput.focus();
+        }
+        
+        // Close password modal
+        function closePasswordModal() {
+            passwordModal.classList.remove('show');
+            passwordInput.value = '';
+        }
+        
+        // Check password status
+        async function checkPasswordStatus() {
+            try {
+                const response = await fetch(`/api/users/${userId}/contexts/personal/password/status`);
+                const data = await response.json();
+                
+                if (data.password_required) {
+                    passwordStatus.textContent = 'Private mode is currently ENABLED. Enter password to disable.';
+                    passwordAction.textContent = 'Disable Private Mode';
+                } else {
+                    passwordStatus.textContent = 'Private mode is currently DISABLED. Enter password to enable.';
+                    passwordAction.textContent = 'Enable Private Mode';
+                }
+                privateEnabled = data.password_required;
+            } catch (error) {
+                passwordStatus.textContent = 'Error checking status';
+            }
+        }
+        
+        // Handle password action
+        async function handlePasswordAction() {
+            const password = passwordInput.value;
+            
+            if (password !== PRIVATE_PASSWORD) {
+                alert('Incorrect password!');
+                return;
+            }
+            
+            try {
+                if (!privateEnabled) {
+                    // Enable private mode
+                    await fetch(`/api/users/${userId}/contexts/personal/password`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: PRIVATE_PASSWORD })
+                    });
+                    privateEnabled = true;
+                    alert('Private mode enabled! Personal context now requires password.');
+                } else {
+                    // Disable private mode
+                    await fetch(`/api/users/${userId}/contexts/personal/password`, {
+                        method: 'DELETE'
+                    });
+                    privateEnabled = false;
+                    authSessionId = null;
+                    alert('Private mode disabled! Personal context is now accessible without password.');
+                }
+                
+                updatePrivateIndicator();
+                closePasswordModal();
+                
+                // Reset conversation if in personal context
+                if (contextSelect.value === 'personal' && currentRunId) {
+                    resetConversation();
+                }
+            } catch (error) {
+                console.error('Error toggling private mode:', error);
+                alert('Error changing private mode settings');
+            }
+        }
+        
+        // Reset conversation
+        function resetConversation() {
+            currentRunId = null;
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            chatContainer.innerHTML = '<div class="status">Conversation reset. Send a message to start.</div>';
+        }
+        
+        // Add message to chat
+        function addMessage(content, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message');
+            messageDiv.classList.add(isUser ? 'user-message' : 'assistant-message');
+            messageDiv.textContent = content;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
+        }
+        
+        // Add status message
+        function addStatus(content) {
+            const statusDiv = document.createElement('div');
+            statusDiv.classList.add('status');
+            statusDiv.textContent = content;
+            chatContainer.appendChild(statusDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Show typing indicator
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.classList.add('typing-indicator');
+            indicator.id = 'typing-indicator';
+            indicator.innerHTML = '<span></span><span></span><span></span>';
+            chatContainer.appendChild(indicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Remove typing indicator
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) indicator.remove();
+        }
+        
+        // Send message
+        async function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || isWaitingForResponse) return;
+            
+            // Check if personal context needs authentication
+            if (contextSelect.value === 'personal' && privateEnabled && !authSessionId) {
+                const password = prompt('Enter password for private context:');
+                if (!password) return;
+                
+                try {
+                    const response = await fetch(`/api/users/${userId}/contexts/personal/password/verify`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password })
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        authSessionId = data.auth_session_id;
+                    } else {
+                        alert('Invalid password!');
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Auth error:', error);
+                    return;
+                }
+            }
+            
+            // Clear input and disable send
+            messageInput.value = '';
+            sendButton.disabled = true;
+            isWaitingForResponse = true;
+            
+            // Add user message
+            addMessage(message, true);
+            
+            try {
+                const requestBody = {
+                    messages: [{ role: 'user', content: message }],
+                    stream: true,
+                    context: contextSelect.value,
+                    mode: modeSelect.value,
+                    user_id: userId,
+                    voice_enabled: true,
+                    voice_id: currentVoiceId
+                };
+                
+                // Add auth session if needed
+                if (authSessionId) {
+                    requestBody.auth_session_id = authSessionId;
+                }
+                
+                if (!currentRunId) {
+                    // Start new conversation
+                    const response = await fetch('/agents/eva/runs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestBody)
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to start conversation');
+                    }
+                    
+                    const data = await response.json();
+                    currentRunId = data.run_id;
+                    
+                    // Update auth session if returned
+                    if (data.auth_session_id) {
+                        authSessionId = data.auth_session_id;
+                    }
+                    
+                    // Set context attribute
+                    chatContainer.setAttribute('data-context', contextSelect.value);
+                    
+                    // Connect to event stream
+                    connectToEventStream(currentRunId);
+                } else {
+                    // Send to existing conversation
+                    const response = await fetch(`/agents/eva/runs/${currentRunId}/input`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ input: message })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to send message');
+                    }
+                }
+                
+                showTypingIndicator();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                addStatus(`Error: ${error.message}`);
+                sendButton.disabled = false;
+                isWaitingForResponse = false;
+                
+                // Clear auth session on auth error
+                if (error.message.includes('password') || error.message.includes('401')) {
+                    authSessionId = null;
+                }
+            }
+        }
+        
+        // Connect to event stream
+        function connectToEventStream(runId) {
+            if (eventSource) {
+                eventSource.close();
+            }
+            
+            eventSource = new EventSource(`/agents/eva/runs/${runId}/events`);
+            let assistantResponse = '';
+            let currentMessageDiv = null;
+            
+            eventSource.onmessage = function(event) {
+                try {
+                    if (event.data.startsWith(':')) return;
+                    
+                    const eventData = JSON.parse(event.data);
+                    const eventType = eventData.event_type;
+                    const data = eventData.data;
+                    
+                    switch (eventType) {
+                        case 'agent.status':
+                            if (data.status === 'waiting_for_input') {
+                                removeTypingIndicator();
+                                sendButton.disabled = false;
+                                isWaitingForResponse = false;
+                            }
+                            break;
+                            
+                        case 'agent.message':
+                            removeTypingIndicator();
+                            
+                            if (data.message && data.message.content) {
+                                if (data.message.is_partial) {
+                                    assistantResponse += data.message.content;
+                                    if (!currentMessageDiv) {
+                                        currentMessageDiv = addMessage(assistantResponse);
+                                    } else {
+                                        currentMessageDiv.textContent = assistantResponse;
+                                    }
+                                } else {
+                                    assistantResponse = data.message.content;
+                                    if (!currentMessageDiv) {
+                                        currentMessageDiv = addMessage(assistantResponse);
+                                    } else {
+                                        currentMessageDiv.textContent = assistantResponse;
+                                    }
+                                    // Reset for next message
+                                    assistantResponse = '';
+                                    currentMessageDiv = null;
+                                }
+                            }
+                            break;
+                            
+                        case 'agent.audio':
+                            // Play TTS audio
+                            if (data.audio) {
+                                playAudio(data.audio);
+                            }
+                            break;
+                            
+                        case 'agent.error':
+                            removeTypingIndicator();
+                            addStatus(`Error: ${data.error}`);
+                            sendButton.disabled = false;
+                            isWaitingForResponse = false;
+                            break;
+                    }
+                    
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                    
+                } catch (error) {
+                    console.error('Error parsing event:', error);
+                }
+            };
+            
+            eventSource.onerror = function(error) {
+                console.error('EventSource error:', error);
+                removeTypingIndicator();
+                sendButton.disabled = false;
+                isWaitingForResponse = false;
+            };
+        }
+        
+        // Play audio from base64
+        function playAudio(base64Audio) {
+            try {
+                const audio = new Audio(`data:audio/mp3;base64,${base64Audio}`);
+                audio.play().catch(e => console.error('Audio playback error:', e));
+                
+                // Add audio indicator
+                const lastMessage = chatContainer.querySelector('.assistant-message:last-child');
+                if (lastMessage) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'audio-indicator';
+                    indicator.innerHTML = '🔊 Voice response played';
+                    lastMessage.appendChild(indicator);
+                }
+            } catch (error) {
+                console.error('Error playing audio:', error);
+            }
+        }
+        
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+        
+        // Password modal keyboard handler
+        passwordInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') handlePasswordAction();
+        });
+        
+        // Click outside modal to close
+        passwordModal.addEventListener('click', function(e) {
+            if (e.target === passwordModal) closePasswordModal();
+        });
+        
+        // Initialize on load
+        initialize();
+        messageInput.focus();
+    </script>
+</body>
+</html>

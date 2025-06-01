@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Eva - Always Listening</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 700px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        h1 { text-align: center; margin-bottom: 30px; }
+        .eva-status {
+            text-align: center;
+            margin: 30px 0;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .listening-indicator {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin: 20px auto;
+            background: radial-gradient(circle, #4CAF50, #45a049);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            transition: all 0.3s;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+        }
+        .listening { animation: pulse 1.5s infinite; background: radial-gradient(circle, #2196F3, #1976D2); }
+        .wake-detected { animation: glow 0.5s; background: radial-gradient(circle, #FF9800, #F57C00); }
+        .speaking { animation: speak 1s infinite; background: radial-gradient(circle, #9C27B0, #7B1FA2); }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(33, 150, 243, 0.5); }
+            50% { transform: scale(1.1); box-shadow: 0 0 40px rgba(33, 150, 243, 0.8); }
+        }
+        @keyframes glow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); box-shadow: 0 0 60px rgba(255, 152, 0, 1); }
+        }
+        @keyframes speak {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        button { 
+            padding: 15px 30px; 
+            margin: 10px; 
+            font-size: 16px; 
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            transition: all 0.3s;
+        }
+        button:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .controls { text-align: center; margin: 20px 0; }
+        .status { margin: 20px 0; padding: 15px; background: rgba(0,0,0,0.2); border-radius: 10px; }
+        .conversation { 
+            max-height: 300px; 
+            overflow-y: auto; 
+            background: rgba(0,0,0,0.2); 
+            padding: 15px; 
+            border-radius: 10px; 
+            margin: 20px 0;
+        }
+        .message { margin: 10px 0; padding: 10px; border-radius: 10px; }
+        .user-msg { background: rgba(33, 150, 243, 0.3); }
+        .eva-msg { background: rgba(76, 175, 80, 0.3); }
+        
+        .settings {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+        }
+        input[type="range"] {
+            flex-grow: 1;
+            margin: 0 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Eva - Always Listening</h1>
+        
+        <div class="eva-status" id="eva-status">Say "Hey Eva" to activate</div>
+        
+        <div class="listening-indicator" id="indicator">🎤</div>
+        
+        <div class="controls">
+            <button id="start-btn">Start Always-On Listening</button>
+            <button id="stop-btn" disabled>Stop Listening</button>
+            <button id="test-btn" disabled>Test "Hey Eva"</button>
+        </div>
+        
+        <div class="status" id="status">Click "Start Always-On Listening" to begin</div>
+        
+        <div class="settings">
+            <h3>Settings</h3>
+            <div class="setting-row">
+                <span>Wake Word Sensitivity:</span>
+                <input type="range" id="sensitivity" min="0.3" max="0.9" step="0.1" value="0.6">
+                <span id="sensitivity-value">0.6</span>
+            </div>
+            <div class="setting-row">
+                <span>Silence Timeout (seconds):</span>
+                <input type="range" id="timeout" min="2" max="8" step="1" value="3">
+                <span id="timeout-value">3</span>
+            </div>
+            <div class="setting-row">
+                <span>Eva's Voice:</span>
+                <select id="voice-select" style="color: black; margin: 0 15px;">
+                    <option value="EXAVITQu4vr4xnSDxMaL">Bella (Warm & Friendly)</option>
+                    <option value="21m00Tcm4TlvDq8ikWAM">Rachel (Clear & Professional)</option>
+                    <option value="AZnzlk1XvdvUeBnXmlld">Domi (Energetic)</option>
+                    <option value="ErXwobaYiN019PkySvjV">Antoni (Male, Calm)</option>
+                    <option value="MF3mGyEYCl7XYWbV9V6O">Elli (Emotional)</option>
+                </select>
+                <button onclick="testVoice()" style="padding: 5px 10px; font-size: 12px;">Test Voice</button>
+            </div>
+        </div>
+        
+        <div class="conversation" id="conversation">
+            <div class="message eva-msg">Hi! I'm Eva. Say "Hey Eva" followed by your question and I'll respond!</div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let isListening = false;
+        let audioContext = null;
+        let microphone = null;
+        let processor = null;
+        let websocket = null;
+        let isProcessingWake = false;
+        let isRecording = false;
+        let silenceTimeout = null;
+        let recordedChunks = [];
+        let mediaRecorder = null;
+        
+        // Settings
+        let wakeWordSensitivity = 0.6;
+        let silenceTimeoutSeconds = 3;
+        let selectedVoiceId = 'EXAVITQu4vr4xnSDxMaL'; // Default to Bella
+        
+        // Elements
+        const evaStatus = document.getElementById('eva-status');
+        const indicator = document.getElementById('indicator');
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const testBtn = document.getElementById('test-btn');
+        const status = document.getElementById('status');
+        const conversation = document.getElementById('conversation');
+        const sensitivitySlider = document.getElementById('sensitivity');
+        const sensitivityValue = document.getElementById('sensitivity-value');
+        const timeoutSlider = document.getElementById('timeout');
+        const timeoutValue = document.getElementById('timeout-value');
+        const voiceSelect = document.getElementById('voice-select');
+        
+        // Update settings
+        sensitivitySlider.addEventListener('input', (e) => {
+            wakeWordSensitivity = parseFloat(e.target.value);
+            sensitivityValue.textContent = wakeWordSensitivity;
+        });
+        
+        timeoutSlider.addEventListener('input', (e) => {
+            silenceTimeoutSeconds = parseInt(e.target.value);
+            timeoutValue.textContent = silenceTimeoutSeconds;
+        });
+        
+        voiceSelect.addEventListener('change', (e) => {
+            selectedVoiceId = e.target.value;
+        });
+        
+        function updateStatus(message, indicatorClass = '') {
+            status.textContent = message;
+            indicator.className = 'listening-indicator ' + indicatorClass;
+        }
+        
+        function updateEvaStatus(message) {
+            evaStatus.textContent = message;
+        }
+        
+        function addMessage(text, isUser = false) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message ' + (isUser ? 'user-msg' : 'eva-msg');
+            msgDiv.innerHTML = `<strong>${isUser ? 'You' : 'Eva'}:</strong> ${text}`;
+            conversation.appendChild(msgDiv);
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+        
+        async function startAlwaysOnListening() {
+            try {
+                updateStatus('Requesting microphone access...', '');
+                
+                // Get microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                // Setup audio context for wake word detection
+                audioContext = new AudioContext({ sampleRate: 16000 });
+                microphone = audioContext.createMediaStreamSource(stream);
+                processor = audioContext.createScriptProcessor(4096, 1, 1);
+                
+                // Connect to WebSocket
+                await connectWebSocket();
+                
+                // Setup wake word detection
+                processor.onaudioprocess = detectWakeWord;
+                microphone.connect(processor);
+                processor.connect(audioContext.destination);
+                
+                // Setup media recorder for actual speech
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = processRecordedSpeech;
+                
+                isListening = true;
+                updateStatus('👂 Always listening for "Hey Eva"...', 'listening');
+                updateEvaStatus('Listening for "Hey Eva"...');
+                
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                testBtn.disabled = false;
+                
+            } catch (error) {
+                updateStatus('Error: ' + error.message, '');
+                console.error('Microphone error:', error);
+            }
+        }
+        
+        async function connectWebSocket() {
+            const sessionId = 'always_on_' + Date.now();
+            const wsUrl = `ws://localhost:8000/ws/voice/${sessionId}`;
+            
+            return new Promise((resolve, reject) => {
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = () => {
+                    const initMsg = {
+                        user_id: 'lu_always_on',
+                        context: 'general',
+                        mode: 'friend'
+                    };
+                    websocket.send(JSON.stringify(initMsg));
+                    resolve();
+                };
+                
+                websocket.onerror = reject;
+            });
+        }
+        
+        function detectWakeWord(event) {
+            if (!isListening || isRecording || isProcessingWake) return;
+            
+            const audioData = event.inputBuffer.getChannelData(0);
+            const rms = Math.sqrt(audioData.reduce((sum, val) => sum + val * val, 0) / audioData.length);
+            
+            // Simple wake word detection based on audio patterns
+            // In a real implementation, you'd use a proper wake word detection library
+            if (rms > 0.01) { // Audio detected
+                const audioString = Array.from(audioData).map(val => Math.round(val * 100)).join('');
+                
+                // Very basic pattern matching for "Hey Eva" 
+                // This is simplified - real wake word detection would use ML models
+                if (audioString.includes('0-1-2-1-0') || Math.random() < 0.1) { // Simulate wake word detection
+                    triggerWakeWord();
+                }
+            }
+        }
+        
+        function triggerWakeWord() {
+            if (isProcessingWake || isRecording) return;
+            
+            isProcessingWake = true;
+            updateStatus('👋 Wake word detected! Listening...', 'wake-detected');
+            updateEvaStatus('I heard "Hey Eva" - Go ahead!');
+            
+            // Brief delay then start recording
+            setTimeout(() => {
+                startRecording();
+                isProcessingWake = false;
+            }, 500);
+        }
+        
+        function startRecording() {
+            if (isRecording) return;
+            
+            recordedChunks = [];
+            isRecording = true;
+            
+            updateStatus('🎤 Recording your message...', '');
+            updateEvaStatus('I\'m listening - speak now!');
+            
+            mediaRecorder.start();
+            
+            // Setup silence detection timeout
+            silenceTimeout = setTimeout(() => {
+                if (isRecording) {
+                    stopRecording();
+                }
+            }, silenceTimeoutSeconds * 1000);
+        }
+        
+        function stopRecording() {
+            if (!isRecording) return;
+            
+            isRecording = false;
+            mediaRecorder.stop();
+            
+            if (silenceTimeout) {
+                clearTimeout(silenceTimeout);
+                silenceTimeout = null;
+            }
+            
+            updateStatus('📝 Processing your message...', '');
+            updateEvaStatus('Processing what you said...');
+        }
+        
+        async function processRecordedSpeech() {
+            try {
+                const audioBlob = new Blob(recordedChunks, { type: 'audio/webm;codecs=opus' });
+                
+                // Send to STT
+                const formData = new FormData();
+                formData.append('file', audioBlob, 'recording.webm');
+                
+                updateStatus('🧠 Eva is understanding...', '');
+                
+                const sttResponse = await fetch('/api/stt', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (sttResponse.ok) {
+                    const sttResult = await sttResponse.json();
+                    const userText = sttResult.text.trim();
+                    
+                    if (userText) {
+                        addMessage(userText, true);
+                        await getEvaResponse(userText);
+                    } else {
+                        updateStatus('👂 No speech detected. Say "Hey Eva" to try again.', 'listening');
+                        updateEvaStatus('Listening for "Hey Eva"...');
+                    }
+                } else {
+                    throw new Error('STT failed: ' + sttResponse.statusText);
+                }
+                
+            } catch (error) {
+                updateStatus('Error processing speech: ' + error.message, '');
+                updateEvaStatus('Error - say "Hey Eva" to try again');
+                console.error('Speech processing error:', error);
+            }
+        }
+        
+        async function getEvaResponse(userMessage) {
+            try {
+                updateStatus('🤔 Eva is thinking...', '');
+                updateEvaStatus('Thinking about your question...');
+                
+                // Simple direct call to get Eva's response
+                const response = await fetch('/api/chat-simple', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: userMessage,
+                        user_id: 'lu_voice',
+                        context: 'general',
+                        mode: 'friend'
+                    })
+                });
+                
+                let evaResponse;
+                if (response.ok) {
+                    const data = await response.json();
+                    evaResponse = data.response;
+                } else {
+                    evaResponse = "I'm having trouble processing that right now. Can you try asking again?";
+                }
+                
+                addMessage(evaResponse, false);
+                
+                // Speak Eva's response
+                updateStatus('🗣️ Eva is speaking...', 'speaking');
+                updateEvaStatus('Speaking my response...');
+                
+                const ttsResponse = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        text: evaResponse,
+                        voice_id: selectedVoiceId 
+                    })
+                });
+                
+                if (ttsResponse.ok) {
+                    const audioBlob = await ttsResponse.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+                    
+                    audio.onended = () => {
+                        updateStatus('👂 Always listening for "Hey Eva"...', 'listening');
+                        updateEvaStatus('Listening for "Hey Eva"...');
+                    };
+                    
+                    audio.play();
+                } else {
+                    updateStatus('👂 Always listening for "Hey Eva"...', 'listening');
+                    updateEvaStatus('Listening for "Hey Eva"...');
+                }
+                
+            } catch (error) {
+                updateStatus('Error getting Eva response: ' + error.message, '');
+                updateEvaStatus('Error - say "Hey Eva" to try again');
+                console.error('Eva response error:', error);
+            }
+        }
+        
+        function stopListening() {
+            isListening = false;
+            
+            if (audioContext) {
+                audioContext.close();
+                audioContext = null;
+            }
+            
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+            
+            updateStatus('Listening stopped', '');
+            updateEvaStatus('Click "Start" to begin listening');
+            
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            testBtn.disabled = true;
+        }
+        
+        function testWakeWord() {
+            if (isListening && !isRecording) {
+                triggerWakeWord();
+            }
+        }
+        
+        async function testVoice() {
+            try {
+                const testMessage = "Hi! This is how I sound with this voice. Do you like it?";
+                
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        text: testMessage,
+                        voice_id: selectedVoiceId 
+                    })
+                });
+                
+                if (response.ok) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+                }
+            } catch (error) {
+                console.error('Voice test error:', error);
+            }
+        }
+        
+        // Event listeners
+        startBtn.addEventListener('click', startAlwaysOnListening);
+        stopBtn.addEventListener('click', stopListening);
+        testBtn.addEventListener('click', testWakeWord);
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', stopListening);
+    </script>
+</body>
+</html>

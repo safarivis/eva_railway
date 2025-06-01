@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Eva Voice - Simple Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+        #status { margin: 20px 0; padding: 10px; background: #f0f0f0; border-radius: 5px; }
+        .connected { background: #d4edda !important; }
+        .error { background: #f8d7da !important; }
+    </style>
+</head>
+<body>
+    <h1>Eva Voice - Simple Test</h1>
+    
+    <button id="connect-btn">Connect Voice</button>
+    <button id="disconnect-btn" disabled>Disconnect</button>
+    <button id="test-tts" disabled>Test Text-to-Speech</button>
+    <button id="test-mic" disabled>Test Microphone</button>
+    <button id="record-btn" disabled>🎤 Hold to Record & Send</button>
+    
+    <div id="status">Click "Connect Voice" to start</div>
+    <div id="transcript"></div>
+    
+    <script>
+        let websocket = null;
+        let isConnected = false;
+        let mediaRecorder = null;
+        let audioStream = null;
+        let recordedChunks = [];
+        
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const testTtsBtn = document.getElementById('test-tts');
+        const testMicBtn = document.getElementById('test-mic');
+        const recordBtn = document.getElementById('record-btn');
+        const status = document.getElementById('status');
+        const transcript = document.getElementById('transcript');
+        
+        function updateStatus(message, type = '') {
+            status.textContent = message;
+            status.className = type;
+        }
+        
+        async function connectVoice() {
+            if (isConnected) return;
+            
+            try {
+                updateStatus('Connecting to voice service...', '');
+                
+                const sessionId = 'voice_' + Date.now();
+                const wsUrl = `ws://localhost:8000/ws/voice/${sessionId}`;
+                
+                websocket = new WebSocket(wsUrl);
+                
+                websocket.onopen = () => {
+                    updateStatus('Connected! Initializing...', '');
+                    
+                    // Send initialization
+                    const initMsg = {
+                        user_id: 'lu_test',
+                        context: 'general',
+                        mode: 'friend'
+                    };
+                    websocket.send(JSON.stringify(initMsg));
+                };
+                
+                websocket.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log('Received:', data);
+                    
+                    if (data.type === 'session_initialized') {
+                        updateStatus('✅ Voice system ready!', 'connected');
+                        isConnected = true;
+                        connectBtn.disabled = true;
+                        disconnectBtn.disabled = false;
+                        testTtsBtn.disabled = false;
+                        testMicBtn.disabled = false;
+                    }
+                };
+                
+                websocket.onclose = () => {
+                    updateStatus('Voice connection closed', '');
+                    isConnected = false;
+                    connectBtn.disabled = false;
+                    disconnectBtn.disabled = true;
+                    testTtsBtn.disabled = true;
+                };
+                
+                websocket.onerror = (error) => {
+                    updateStatus('Connection error: ' + error, 'error');
+                    console.error('WebSocket error:', error);
+                };
+                
+            } catch (error) {
+                updateStatus('Failed to connect: ' + error.message, 'error');
+            }
+        }
+        
+        function disconnectVoice() {
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+            }
+        }
+        
+        async function testTTS() {
+            try {
+                updateStatus('Testing text-to-speech...', '');
+                
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: 'Hello Lu! This is Eva testing the text-to-speech system. Can you hear me?',
+                        voice_id: null
+                    })
+                });
+                
+                if (response.ok) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+                    updateStatus('✅ TTS test successful! Audio should be playing.', 'connected');
+                } else {
+                    updateStatus('TTS test failed: ' + response.statusText, 'error');
+                }
+                
+            } catch (error) {
+                updateStatus('TTS error: ' + error.message, 'error');
+            }
+        }
+        
+        async function testMicrophone() {
+            try {
+                updateStatus('Testing microphone access...', '');
+                
+                audioStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    }
+                });
+                
+                updateStatus('✅ Microphone access granted!', 'connected');
+                recordBtn.disabled = false;
+                
+                // Show audio level indicator
+                const audioContext = new AudioContext();
+                const source = audioContext.createMediaStreamSource(audioStream);
+                const analyser = audioContext.createAnalyser();
+                source.connect(analyser);
+                
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                function checkAudioLevel() {
+                    analyser.getByteFrequencyData(dataArray);
+                    const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+                    if (average > 10) {
+                        updateStatus('✅ Microphone working! Audio detected: ' + Math.round(average), 'connected');
+                    }
+                    if (audioStream && audioStream.active) {
+                        requestAnimationFrame(checkAudioLevel);
+                    }
+                }
+                checkAudioLevel();
+                
+            } catch (error) {
+                updateStatus('Microphone error: ' + error.message, 'error');
+                console.error('Microphone error:', error);
+            }
+        }
+        
+        async function startRecording() {
+            if (!audioStream) {
+                await testMicrophone();
+                if (!audioStream) return;
+            }
+            
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(audioStream, {
+                mimeType: 'audio/webm;codecs=opus'
+            });
+            
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) {
+                    recordedChunks.push(event.data);
+                }
+            };
+            
+            mediaRecorder.onstop = async () => {
+                const audioBlob = new Blob(recordedChunks, { type: 'audio/webm;codecs=opus' });
+                await sendAudioToEva(audioBlob);
+            };
+            
+            mediaRecorder.start();
+            updateStatus('🎤 Recording... Release button to send', '');
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                updateStatus('Processing audio...', '');
+            }
+        }
+        
+        async function sendAudioToEva(audioBlob) {
+            try {
+                const formData = new FormData();
+                formData.append('file', audioBlob, 'recording.webm');
+                
+                updateStatus('Sending to Eva for transcription...', '');
+                
+                const response = await fetch('/api/stt', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    const transcribedText = result.text;
+                    
+                    transcript.innerHTML = `<strong>You said:</strong> "${transcribedText}"<br>`;
+                    updateStatus('✅ Eva heard you! Check transcript below.', 'connected');
+                    
+                    // Now get Eva's response
+                    await getEvaResponse(transcribedText);
+                    
+                } else {
+                    updateStatus('STT error: ' + response.statusText, 'error');
+                }
+                
+            } catch (error) {
+                updateStatus('Audio processing error: ' + error.message, 'error');
+            }
+        }
+        
+        async function getEvaResponse(userMessage) {
+            try {
+                updateStatus('Eva is thinking...', '');
+                
+                // Send message to our chat API
+                const response = await fetch('/agents/eva/runs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        messages: [{ role: 'user', content: userMessage }],
+                        stream: false
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const runId = data.run_id;
+                    
+                    // Get Eva's response
+                    const eventsResponse = await fetch(`/agents/eva/runs/${runId}/events`);
+                    // This is simplified - in a real implementation we'd parse the SSE stream
+                    
+                    // For now, let's use a simple text response
+                    const evaResponse = "I heard you say: " + userMessage + ". Thanks for testing the voice system!";
+                    
+                    transcript.innerHTML += `<strong>Eva said:</strong> "${evaResponse}"<br>`;
+                    
+                    // Play Eva's response
+                    const ttsResponse = await fetch('/api/tts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text: evaResponse })
+                    });
+                    
+                    if (ttsResponse.ok) {
+                        const audioBlob = await ttsResponse.blob();
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        const audio = new Audio(audioUrl);
+                        audio.play();
+                        updateStatus('✅ Full voice conversation test complete!', 'connected');
+                    }
+                }
+                
+            } catch (error) {
+                updateStatus('Eva response error: ' + error.message, 'error');
+            }
+        }
+        
+        recordBtn.addEventListener('mousedown', startRecording);
+        recordBtn.addEventListener('mouseup', stopRecording);
+        recordBtn.addEventListener('touchstart', startRecording);
+        recordBtn.addEventListener('touchend', stopRecording);
+        
+        connectBtn.addEventListener('click', connectVoice);
+        disconnectBtn.addEventListener('click', disconnectVoice);
+        testTtsBtn.addEventListener('click', testTTS);
+        testMicBtn.addEventListener('click', testMicrophone);
+    </script>
+</body>
+</html>

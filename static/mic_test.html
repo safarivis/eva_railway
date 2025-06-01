@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Microphone Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f5f9;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { text-align: center; margin-bottom: 20px; color: #003049; }
+        button {
+            background-color: #00406a;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #003049;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .success { background-color: #e8f5e9; color: #2e7d32; }
+        .error { background-color: #ffebee; color: #c62828; }
+        .info { background-color: #e3f2fd; color: #1565c0; }
+        .transcript {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+        .audio-level {
+            width: 100%;
+            height: 30px;
+            background-color: #e0e0e0;
+            margin: 20px 0;
+            position: relative;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .audio-level-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 Microphone Test</h1>
+        
+        <div class="status info" id="status">Click "Test Microphone" to begin</div>
+        
+        <div class="audio-level">
+            <div class="audio-level-fill" id="audio-level-fill"></div>
+        </div>
+        
+        <div style="text-align: center;">
+            <button id="test-mic">Test Microphone</button>
+            <button id="start-recognition">Start Speech Recognition</button>
+            <button id="stop-recognition">Stop Recognition</button>
+        </div>
+        
+        <h3>Transcript:</h3>
+        <div class="transcript" id="transcript"></div>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const testMicBtn = document.getElementById('test-mic');
+        const startRecognitionBtn = document.getElementById('start-recognition');
+        const stopRecognitionBtn = document.getElementById('stop-recognition');
+        const transcriptEl = document.getElementById('transcript');
+        const audioLevelFill = document.getElementById('audio-level-fill');
+        
+        let audioContext;
+        let analyser;
+        let microphone;
+        let javascriptNode;
+        let recognition;
+        
+        // Update status with appropriate styling
+        function updateStatus(message, type = 'info') {
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+        }
+        
+        // Test microphone access and audio levels
+        testMicBtn.addEventListener('click', async () => {
+            try {
+                updateStatus('Requesting microphone access...', 'info');
+                
+                // Request microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                updateStatus('Microphone access granted! Monitoring audio levels...', 'success');
+                
+                // Set up audio context for level monitoring
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+                
+                analyser.smoothingTimeConstant = 0.8;
+                analyser.fftSize = 1024;
+                
+                microphone.connect(analyser);
+                analyser.connect(javascriptNode);
+                javascriptNode.connect(audioContext.destination);
+                
+                // Process audio data to show levels
+                javascriptNode.onaudioprocess = function() {
+                    const array = new Uint8Array(analyser.frequencyBinCount);
+                    analyser.getByteFrequencyData(array);
+                    
+                    // Calculate average level
+                    let values = 0;
+                    for (let i = 0; i < array.length; i++) {
+                        values += array[i];
+                    }
+                    const average = values / array.length;
+                    
+                    // Update audio level visualization
+                    const percent = Math.min(100, average * 2);
+                    audioLevelFill.style.width = percent + '%';
+                };
+                
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                updateStatus('Error accessing microphone: ' + error.message, 'error');
+            }
+        });
+        
+        // Set up speech recognition
+        startRecognitionBtn.addEventListener('click', () => {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                updateStatus('Speech recognition not supported in this browser', 'error');
+                return;
+            }
+            
+            recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            
+            let finalTranscript = '';
+            
+            recognition.onstart = function() {
+                updateStatus('Speech recognition started. Speak now...', 'info');
+            };
+            
+            recognition.onresult = function(event) {
+                let interimTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+                
+                transcriptEl.innerHTML = 
+                    '<p><strong>Final:</strong> ' + finalTranscript + '</p>' +
+                    '<p><strong>Interim:</strong> ' + interimTranscript + '</p>';
+            };
+            
+            recognition.onerror = function(event) {
+                updateStatus('Error in speech recognition: ' + event.error, 'error');
+            };
+            
+            recognition.onend = function() {
+                updateStatus('Speech recognition ended', 'info');
+            };
+            
+            recognition.start();
+        });
+        
+        stopRecognitionBtn.addEventListener('click', () => {
+            if (recognition) {
+                recognition.stop();
+                updateStatus('Speech recognition stopped', 'info');
+            }
+        });
+    </script>
+</body>
+</html>
