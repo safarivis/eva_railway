@@ -31,6 +31,7 @@ from integrations.private_context_auth import PrivateContextAuth
 from voice.realtime_voice import get_voice_manager, RealTimeVoiceManager
 from voice.eva_voice_workflow import EVAVoiceWorkflow
 from core.session_persistence import get_session_persistence
+from integrations.tool_manager import get_tool_manager, ToolCall
 # Removed OpenAI Agents SDK - using direct API calls
 
 # Load environment variables
@@ -245,7 +246,7 @@ RELATIONSHIP BUILDING:
 CURRENT CONTEXT: {context_instructions.get(context, context_instructions['general'])}
 CURRENT MODE: {mode_instructions.get(mode, mode_instructions['friend'])}
 
-CURRENT USER CONTEXT: This is Lu (Louis du Plessis) - AI & Data Engineer from South Africa. Learn about him, adapt to his style, and grow your friendship naturally.
+CURRENT USER CONTEXT: This is Lu (Louis du Plessis) - AI & Data Engineer from South Africa. His email address is louisrdup@gmail.com. Learn about him, adapt to his style, and grow your friendship naturally.
 
 Remember: You're an evolving companion who learns and grows. Each conversation should build on the last. Be authentic, adaptive, and genuinely invested in this unique friendship! 💝"""
 
@@ -307,21 +308,34 @@ restore_sessions_on_startup()
 
 # Direct OpenAI API interaction - much simpler!
 async def get_agent_response(run_id: str, user_message: str) -> str:
-    """Get response using direct OpenAI API calls."""
+    """Get response using direct OpenAI API calls with tool calling support."""
     conversation = active_conversations.get(run_id)
     if not conversation:
         raise ValueError(f"No conversation found for session {run_id}")
+    
+    # Get tool manager
+    tool_manager = get_tool_manager()
     
     try:
         # Build the messages array including system prompt and conversation history
         messages = []
         
-        # Add system prompt
+        # Add system prompt with tool instructions
         system_prompt = build_system_prompt(
             conversation.get("context", "general"),
             conversation.get("mode", "assistant")
         )
-        messages.append({"role": "system", "content": system_prompt})
+        # Add tool calling instructions to system prompt
+        tool_instructions = """
+
+You have access to the following tools to help users:
+- email: Manage emails (send with Resend, list/read/search with Gmail agent)
+- file: Access files (read, write, list directories)
+- web_search: Search the web for information
+
+When a user asks you to perform a task that requires using these tools, describe what you're doing and the results clearly."""
+        
+        messages.append({"role": "system", "content": system_prompt + tool_instructions})
         
         # Add Zep memory context if available
         if context_manager and conversation.get("context") != "general":
@@ -351,11 +365,16 @@ async def get_agent_response(run_id: str, user_message: str) -> str:
             "Content-Type": "application/json"
         }
         
+        # Add tool definitions for OpenAI function calling
+        tools = tool_manager.get_tool_schema()['tools']
+        
         payload = {
             "model": OPENAI_MODEL,
             "messages": messages,
             "max_tokens": 2048,
             "temperature": 0.7,
+            "tools": tools,
+            "tool_choice": "auto"
         }
         
         async with httpx.AsyncClient() as client:
@@ -370,7 +389,57 @@ async def get_agent_response(run_id: str, user_message: str) -> str:
                 raise Exception(f"OpenAI API error: {response.status_code} - {response.text}")
             
             data = response.json()
-            return data["choices"][0]["message"]["content"]
+            message = data["choices"][0]["message"]
+            
+            # Check if the model wants to use tools
+            if "tool_calls" in message:
+                print(f"DEBUG: OpenAI wants to use tools: {message['tool_calls']}")
+                tool_results = []
+                
+                for tool_call in message["tool_calls"]:
+                    function = tool_call["function"]
+                    tool_name = function["name"].replace("_tool", "")
+                    args = json.loads(function["arguments"])
+                    
+                    print(f"DEBUG: Calling tool {tool_name} with action {args.get('action')} and params {args.get('parameters')}")
+                    
+                    # Execute the tool
+                    tool_response = await tool_manager.call_tool(
+                        ToolCall(
+                            tool=tool_name,
+                            action=args.get("action", ""),
+                            parameters=args.get("parameters", {})
+                        )
+                    )
+                    
+                    print(f"DEBUG: Tool response: success={tool_response.success}, result={tool_response.result}, error={tool_response.error}")
+                    
+                    tool_results.append({
+                        "tool_call_id": tool_call["id"],
+                        "role": "tool",
+                        "content": json.dumps(tool_response.model_dump())
+                    })
+                
+                # Add tool results to messages and get final response
+                messages.append(message)
+                messages.extend(tool_results)
+                
+                # Make another API call with tool results
+                payload["messages"] = messages
+                final_response = await client.post(
+                    OPENAI_BASE_URL,
+                    headers=headers,
+                    json=payload,
+                    timeout=60.0
+                )
+                
+                if final_response.status_code != 200:
+                    raise Exception(f"OpenAI API error: {final_response.status_code} - {final_response.text}")
+                
+                final_data = final_response.json()
+                return final_data["choices"][0]["message"]["content"]
+            else:
+                return message.get("content", "")
             
     except Exception as e:
         print(f"OpenAI API call failed: {e}")
@@ -418,6 +487,10 @@ async def query_llm_legacy(messages: List[Dict[str, Any]], stream: bool = True, 
         "Content-Type": "application/json"
     }
     
+    # Get tool definitions
+    tool_manager = get_tool_manager()
+    tools = tool_manager.get_tool_schema()['tools']
+    
     payload = {
         "model": OPENAI_MODEL,
         "messages": enhanced_messages,
@@ -427,6 +500,8 @@ async def query_llm_legacy(messages: List[Dict[str, Any]], stream: bool = True, 
         "top_p": 0.9,
         "presence_penalty": 0.0,
         "frequency_penalty": 0.0,
+        "tools": tools,
+        "tool_choice": "auto"
     }
     
     async with httpx.AsyncClient() as client:
@@ -748,7 +823,7 @@ async def chat_simple(request: ChatSimpleRequest):
             else:
                 active_conversations[session_id] = {
                     "messages": [
-                        {"role": "system", "content": "This is Lu (Louis du Plessis), your friend from South Africa. You know him well."},
+                        {"role": "system", "content": "This is Lu (Louis du Plessis), your friend from South Africa. You know him well. His email address is louisrdup@gmail.com."},
                     ],
                     "context": request.context,
                     "mode": request.mode,
@@ -1210,4 +1285,5 @@ if __name__ == "__main__":
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
     print(f"Starting with model: {OPENAI_MODEL}")
     
-    uvicorn.run("eva:app", host="0.0.0.0", port=8000, reload=False)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("eva:app", host="0.0.0.0", port=port, reload=False)
