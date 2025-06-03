@@ -1732,7 +1732,9 @@ async def transcribe_voice(audio: UploadFile = File(...)):
                 'file': (audio.filename, audio_data, audio.content_type)
             }
             data = {
-                'model': 'whisper-1'
+                'model': 'whisper-1',
+                'language': 'en',
+                'prompt': 'This is a conversation with an AI assistant named Eva. The user is speaking in English.'
             }
             headers = {
                 'Authorization': f'Bearer {OPENAI_API_KEY}'
