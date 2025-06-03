@@ -281,17 +281,14 @@
         const chatContainer = document.getElementById('chat-container');
         const messageInput = document.getElementById('message-input');
         const sendButton = document.getElementById('send-button');
-        const modelInfo = document.getElementById('model-info');
-        
-        // Load model info
+        // Load model info (removed from UI but keep for console)
         fetch('/api/info')
             .then(response => response.json())
             .then(data => {
-                modelInfo.textContent = data.model;
+                console.log('Eva model:', data.model);
             })
             .catch(error => {
                 console.error('Error fetching model info:', error);
-                modelInfo.textContent = 'Unknown model';
             });
         
         let currentRunId = null;
@@ -575,6 +572,15 @@
             themeToggle.title = 'Switch to Dark Mode';
         }
         
+        // Voice recording functionality
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        
+        // TTS functionality
+        let ttsEnabled = localStorage.getItem('ttsEnabled') !== 'false';
+        let currentAudio = null;
+        
         // Initialize TTS state
         initializeTTS();
         
@@ -599,15 +605,6 @@
                 // TODO: Implement audio upload to server
             }
         });
-        
-        // Voice recording functionality
-        let mediaRecorder;
-        let audioChunks = [];
-        let isRecording = false;
-        
-        // TTS functionality
-        let ttsEnabled = localStorage.getItem('ttsEnabled') !== 'false';
-        let currentAudio = null;
         
         async function toggleVoiceRecording() {
             console.log('Voice button clicked, isRecording:', isRecording);
