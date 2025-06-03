@@ -1719,6 +1719,44 @@ async def edit_image(request: ImageEditRequest):
         traceback.print_exc()
         return JSONResponse({"error": str(e)}, status_code=500)
 
+@app.post("/api/voice/transcribe")
+async def transcribe_voice(audio: UploadFile = File(...)):
+    """Transcribe voice recording using OpenAI Whisper."""
+    try:
+        # Read the audio file
+        audio_data = await audio.read()
+        
+        # Use OpenAI Whisper API for transcription
+        async with httpx.AsyncClient() as client:
+            files = {
+                'file': (audio.filename, audio_data, audio.content_type)
+            }
+            data = {
+                'model': 'whisper-1'
+            }
+            headers = {
+                'Authorization': f'Bearer {OPENAI_API_KEY}'
+            }
+            
+            response = await client.post(
+                'https://api.openai.com/v1/audio/transcriptions',
+                headers=headers,
+                files=files,
+                data=data,
+                timeout=30.0
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return {"text": result.get("text", "")}
+            else:
+                logger.error(f"Whisper API error: {response.status_code} - {response.text}")
+                return JSONResponse({"error": "Transcription failed"}, status_code=500)
+                
+    except Exception as e:
+        logger.error(f"Voice transcription error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 @app.get("/api/info")
 async def api_info():
     """API endpoint with agent information."""
