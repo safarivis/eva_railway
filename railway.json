@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "nixpacks"
+  },
+  "deploy": {
+    "startCommand": "python core/eva.py",
+    "healthcheckPath": "/api/info"
+  }
+}

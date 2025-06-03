@@ -2,6 +2,24 @@
 
 This guide explains how to start and use the EVA agent with all its features including real-time voice, contextual memory, and private mode.
 
+## 📁 **CRITICAL: File Management Rules**
+
+### ⚠️ TEMPORARY FILES POLICY
+**NEVER place temporary files in the project root!** Always use the temp folder structure:
+
+```
+/temp/
+  ├── tests/         # Test files and debugging scripts  
+  ├── backups/       # Temporary backups during development
+  ├── docs/          # Draft documentation
+  └── cleanup/       # Files to delete after completion
+```
+
+**✅ DO:** Create `/temp/` folder for ALL temporary files  
+**❌ DON'T:** Create `.test.py`, `.debug.py`, `.tmp` files in project root
+
+---
+
 ## 🚀 Quick Start Guide
 
 ### Prerequisites
@@ -51,6 +69,29 @@ INFO: Uvicorn running on http://0.0.0.0:8000
 **⚠️ Important:** Keep this terminal window open - the server must stay running!
 
 ## 🌐 Access the Interfaces
+
+### Voice Chat with Local STT (NEW - FREE!)
+**Command:** `python eva_voice_local.py`
+
+**Features:**
+- ✅ **FREE** local speech recognition (no API costs!)
+- ✅ Talk to EVA naturally without typing
+- ✅ Privacy - audio stays on your computer
+- ✅ Uses faster-whisper for offline STT
+- ✅ Voice responses from EVA
+- ✅ Context and mode switching
+
+**Usage:**
+```bash
+# Terminal 1: Start EVA server
+python core/eva.py
+
+# Terminal 2: Start voice chat
+python eva_voice_local.py
+
+# Press ENTER to start/stop recording
+# Say "exit" or "quit" to leave
+```
 
 ### Simple Text Chat (Recommended)
 **Command:** `python eva_chat.py`

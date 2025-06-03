@@ -37,11 +37,17 @@ class ZepMemoryManager:
         except Exception:
             # Create new user if doesn't exist
             try:
+                # Set default details for Lu if not provided
+                if user_id == "lu_ldp_main" and not email:
+                    email = "louisrdup@gmail.com"
+                    first_name = "Louis"
+                    last_name = "du Plessis"
+                
                 await self.client.user.add(
                     user_id=user_id,
-                    email=email,
-                    first_name=first_name,
-                    last_name=last_name
+                    email=email or f"{user_id}@example.com",
+                    first_name=first_name or "User",
+                    last_name=last_name or user_id
                 )
                 logger.info(f"Created new user: {user_id}")
                 return user_id
@@ -127,7 +133,8 @@ class ZepMemoryManager:
                     role_type=role_type
                 ))
             
-            await self.client.memory.add(session_id, messages=zep_messages)
+            # Use add_memory instead of add
+            await self.client.memory.add_memory(session_id, messages=zep_messages)
             logger.info(f"Added {len(zep_messages)} messages to session {session_id}")
             
         except Exception as e:

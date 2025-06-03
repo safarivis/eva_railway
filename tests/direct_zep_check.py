@@ -46,17 +46,17 @@ async def main():
                         if hasattr(memory, 'context') and memory.context:
                             print(f"Context: {memory.context[:200]}..." if len(memory.context) > 200 else memory.context)
                         
-                        # Get messages for this session
+                        # Get messages for this session using the correct method
                         try:
-                            messages = await client.memory.get_messages(session.session_id)
-                            if messages:
+                            if hasattr(memory, 'messages') and memory.messages:
+                                messages = memory.messages
                                 print(f"Messages: {len(messages)} found")
                                 for j, msg in enumerate(messages[:5], 1):  # Show first 5 messages
                                     print(f"  Message {j}:")
                                     print(f"    Role: {msg.role} ({msg.role_type})")
                                     print(f"    Content: {msg.content[:100]}..." if len(msg.content) > 100 else msg.content)
                             else:
-                                print("No messages found")
+                                print("No messages found in memory object")
                         except Exception as e:
                             print(f"Error getting messages: {e}")
                     else:
@@ -64,11 +64,11 @@ async def main():
                 except Exception as e:
                     print(f"Error getting memory: {e}")
                     
-                # Try to search this session
+                # Try to search this session using correct method
                 try:
-                    search_results = await client.memory.search(
-                        session_id=session.session_id,
+                    search_results = await client.memory.search_sessions(
                         text="conversation",
+                        session_ids=[session.session_id],
                         limit=3
                     )
                     if search_results:

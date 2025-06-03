@@ -2,6 +2,32 @@
 
 EVA is an advanced AI assistant agent with real-time voice capabilities, contextual memory, and secure private mode.
 
+## 📁 **CRITICAL: File Management Rules**
+
+### ⚠️ TEMPORARY FILES POLICY
+**NEVER place temporary files in the project root!** Always use the temp folder structure:
+
+```
+/temp/
+  ├── tests/         # Test files and debugging scripts  
+  ├── backups/       # Temporary backups during development
+  ├── docs/          # Draft documentation
+  └── cleanup/       # Files to delete after completion
+```
+
+**✅ DO:**
+- Create `/temp/` folder for ALL temporary files
+- Use descriptive names: `temp/tests/debug-voice-integration-2024-06-02.py`
+- Delete temp files when development task is complete
+- Document temp file purpose in development notes
+
+**❌ DON'T:**
+- Create `.test.py`, `.debug.py`, `.tmp` files in project root
+- Leave temporary files scattered throughout the project
+- Create files without clear cleanup plan
+
+---
+
 ## 🚀 Features
 
 - 🎤 **Real-time Voice Conversations** - Continuous listening with voice activity detection

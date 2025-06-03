@@ -4,7 +4,9 @@
 import asyncio
 import os
 from dotenv import load_dotenv
-from zep_memory import ZepMemoryManager
+import sys
+sys.path.insert(0, '..')
+from integrations.zep_memory import ZepMemoryManager
 
 load_dotenv()
 

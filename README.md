@@ -2,6 +2,42 @@
 
 An intelligent AI assistant with voice capabilities and contextual memory.
 
+## 📁 **CRITICAL: File Management Rules**
+
+### ⚠️ TEMPORARY FILES POLICY
+**NEVER place temporary files in the project root!** Always use the temp folder structure:
+
+```
+/temp/
+  ├── sql/           # Database scripts, migrations, debugging queries
+  ├── tests/         # Test files and debugging scripts  
+  ├── backups/       # Temporary backups during development
+  ├── docs/          # Draft documentation
+  └── cleanup/       # Files to delete after completion
+```
+
+**✅ DO:**
+- Create `/temp/` folder for ALL temporary files
+- Use descriptive names: `temp/tests/debug-zep-integration-2024-06-02.py`
+- Delete temp files when development task is complete
+- Document temp file purpose in development notes
+
+**❌ DON'T:**
+- Create `.test.py`, `.debug.py`, `.tmp` files in project root
+- Leave temporary files scattered throughout the project
+- Create files without clear cleanup plan
+
+**🧹 CLEANUP ROUTINE:**
+```bash
+# At end of each development session:
+rm -rf temp/tests/        # Remove temp test files
+rm -rf temp/backups/      # Remove temp backups
+rm -rf temp/cleanup/      # Remove debugging files
+git status                # Ensure no temp files tracked
+```
+
+---
+
 ## Project Structure
 
 ```
