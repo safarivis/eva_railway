@@ -248,7 +248,7 @@
             </svg>
         </button>
         
-        <button class="file-button" id="voice-button" onclick="toggleVoiceRecording()" title="Voice Message">
+        <button class="file-button" id="voice-button" title="Voice Message">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
@@ -256,7 +256,7 @@
                 <line x1="8" y1="23" x2="16" y2="23"/>
             </svg>
         </button>
-        <button class="file-button" id="tts-toggle" onclick="toggleTTS()" title="Toggle Voice Response">
+        <button class="file-button" id="tts-toggle" title="Toggle Voice Response">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                 <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -577,6 +577,10 @@
         
         // Initialize TTS state
         initializeTTS();
+        
+        // Add event listeners for all buttons
+        document.getElementById('voice-button').addEventListener('click', toggleVoiceRecording);
+        document.getElementById('tts-toggle').addEventListener('click', toggleTTS);
         
         // File upload handlers
         document.getElementById('image-input').addEventListener('change', function(e) {
