@@ -5,25 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Eva Agent - AG-UI Interface</title>
     <style>
+        :root {
+            --bg-color: #f5f5f5;
+            --text-color: #333;
+            --chat-bg: white;
+            --border-color: #ddd;
+            --user-msg-bg: #e1f5fe;
+            --assistant-msg-bg: #f0f0f0;
+            --input-bg: white;
+            --button-bg: #007bff;
+            --button-text: white;
+        }
+        
+        [data-theme="dark"] {
+            --bg-color: #1a1a1a;
+            --text-color: #e0e0e0;
+            --chat-bg: #2d2d2d;
+            --border-color: #404040;
+            --user-msg-bg: #0d47a1;
+            --assistant-msg-bg: #404040;
+            --input-bg: #2d2d2d;
+            --button-bg: #1976d2;
+            --button-text: white;
+        }
+
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background-color: #f5f5f5;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
         }
         header {
             text-align: center;
             margin-bottom: 20px;
         }
         h1 {
-            color: #333;
+            color: var(--text-color);
+        }
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--button-bg);
+            color: var(--button-text);
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        .theme-toggle:hover {
+            opacity: 0.8;
         }
         .chat-container {
             height: 500px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--border-color);
             border-radius: 8px;
-            background-color: white;
+            background-color: var(--chat-bg);
             padding: 15px;
             overflow-y: auto;
             margin-bottom: 15px;
@@ -37,20 +79,22 @@
             word-wrap: break-word;
         }
         .user-message {
-            background-color: #e1f5fe;
+            background-color: var(--user-msg-bg);
             margin-left: auto;
             border-bottom-right-radius: 5px;
             text-align: right;
             align-self: flex-end;
+            color: white;
         }
         .assistant-message {
-            background-color: #f0f0f0;
+            background-color: var(--assistant-msg-bg);
             margin-right: auto;
             border-bottom-left-radius: 5px;
         }
         .status {
             font-style: italic;
-            color: #666;
+            color: var(--text-color);
+            opacity: 0.7;
             text-align: center;
             margin: 10px 0;
         }
@@ -61,22 +105,40 @@
         #message-input {
             flex-grow: 1;
             padding: 12px;
-            border: 1px solid #ddd;
+            border: 1px solid var(--border-color);
             border-radius: 6px;
             font-size: 16px;
+            background-color: var(--input-bg);
+            color: var(--text-color);
         }
         button {
             padding: 12px 24px;
-            background-color: #0277bd;
-            color: white;
+            background-color: var(--button-bg);
+            color: var(--button-text);
             border: none;
             border-radius: 6px;
             cursor: pointer;
             font-size: 16px;
             transition: background-color 0.3s;
         }
+        .upload-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .file-input {
+            display: none;
+        }
+        .file-button {
+            padding: 8px 16px;
+            font-size: 14px;
+            background-color: var(--assistant-msg-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
         button:hover {
-            background-color: #01579b;
+            opacity: 0.8;
         }
         button:disabled {
             background-color: #cccccc;
@@ -85,7 +147,7 @@
         .typing-indicator {
             display: inline-block;
             padding: 10px 15px;
-            background-color: #f0f0f0;
+            background-color: var(--assistant-msg-bg);
             border-radius: 18px;
             margin-bottom: 15px;
         }
@@ -113,20 +175,22 @@
         pre {
             white-space: pre-wrap;
             word-wrap: break-word;
-            background-color: #f8f8f8;
+            background-color: var(--assistant-msg-bg);
             padding: 10px;
             border-radius: 5px;
             overflow-x: auto;
+            border: 1px solid var(--border-color);
         }
         code {
             font-family: 'Courier New', Courier, monospace;
-            background-color: #f0f0f0;
+            background-color: var(--assistant-msg-bg);
             padding: 2px 5px;
             border-radius: 3px;
         }
     </style>
 </head>
 <body>
+    <button class="theme-toggle" onclick="toggleTheme()">🌙 Dark</button>
     <header>
         <h1>Eva Agent</h1>
         <p>A simple AI agent built with AG-UI protocol</p>
@@ -135,6 +199,14 @@
     
     <div class="chat-container" id="chat-container">
         <div class="status">Eva is ready. Send a message to start the conversation.</div>
+    </div>
+    
+    <div class="upload-container">
+        <input type="file" id="image-input" class="file-input" accept="image/*" multiple>
+        <button class="file-button" onclick="document.getElementById('image-input').click()">📷 Images</button>
+        
+        <input type="file" id="audio-input" class="file-input" accept="audio/*">
+        <button class="file-button" onclick="document.getElementById('audio-input').click()">🎵 Audio</button>
     </div>
     
     <div class="input-container">
@@ -410,6 +482,46 @@
         
         // Focus input on load
         messageInput.focus();
+        
+        // Dark mode functionality
+        function toggleTheme() {
+            const body = document.body;
+            const themeToggle = document.querySelector('.theme-toggle');
+            
+            if (body.dataset.theme === 'dark') {
+                body.dataset.theme = 'light';
+                themeToggle.textContent = '🌙 Dark';
+                localStorage.setItem('theme', 'light');
+            } else {
+                body.dataset.theme = 'dark';
+                themeToggle.textContent = '☀️ Light';
+                localStorage.setItem('theme', 'dark');
+            }
+        }
+        
+        // Load saved theme
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.body.dataset.theme = savedTheme;
+        const themeToggle = document.querySelector('.theme-toggle');
+        themeToggle.textContent = savedTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
+        
+        // File upload handlers
+        document.getElementById('image-input').addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                const fileNames = files.map(f => f.name).join(', ');
+                addMessage(`📷 Selected images: ${fileNames}`, 'user');
+                // TODO: Implement image upload to server
+            }
+        });
+        
+        document.getElementById('audio-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                addMessage(`🎵 Selected audio: ${file.name}`, 'user');
+                // TODO: Implement audio upload to server
+            }
+        });
     </script>
 </body>
 </html>
