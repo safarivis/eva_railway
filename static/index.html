@@ -535,10 +535,14 @@
         }
         
         // Event listeners
-        sendButton.addEventListener('click', sendMessage);
+        sendButton.addEventListener('click', () => {
+            initializeAudioContext();
+            sendMessage();
+        });
         
         messageInput.addEventListener('keypress', function(event) {
             if (event.key === 'Enter') {
+                initializeAudioContext();
                 sendMessage();
             }
         });
@@ -580,6 +584,18 @@
         // TTS functionality
         let ttsEnabled = localStorage.getItem('ttsEnabled') !== 'false';
         let currentAudio = null;
+        let audioContextInitialized = false;
+        
+        // Initialize audio context on first user interaction
+        function initializeAudioContext() {
+            if (!audioContextInitialized) {
+                // Create a silent audio to unlock audio playback
+                const silentAudio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
+                silentAudio.play().catch(() => {});
+                audioContextInitialized = true;
+                console.log('Audio context initialized');
+            }
+        }
         
         // Initialize TTS state
         initializeTTS();
@@ -608,6 +624,7 @@
         
         async function toggleVoiceRecording() {
             console.log('Voice button clicked, isRecording:', isRecording);
+            initializeAudioContext(); // Initialize audio on user interaction
             const voiceButton = document.getElementById('voice-button');
             
             if (!isRecording) {
@@ -710,6 +727,7 @@
         // TTS toggle functionality
         function toggleTTS() {
             console.log('TTS button clicked, current state:', ttsEnabled);
+            initializeAudioContext(); // Initialize audio on user interaction
             const ttsButton = document.getElementById('tts-toggle');
             ttsEnabled = !ttsEnabled;
             
@@ -807,8 +825,27 @@
                         addMessage('❌ Voice playback failed', 'system');
                     };
                     
-                    await currentAudio.play();
-                    console.log('TTS playback started');
+                    // Try to play with user gesture handling
+                    try {
+                        await currentAudio.play();
+                        console.log('TTS playback started');
+                    } catch (playError) {
+                        console.log('Auto-play failed, user interaction required:', playError);
+                        // Create a user-clickable button to play audio
+                        const playButton = document.createElement('button');
+                        playButton.textContent = '🔊 Click to hear Eva';
+                        playButton.style.cssText = 'margin: 5px; padding: 8px 12px; background: var(--button-bg); color: white; border: none; border-radius: 6px; cursor: pointer;';
+                        playButton.onclick = () => {
+                            currentAudio.play();
+                            playButton.remove();
+                        };
+                        
+                        const messageDiv = document.createElement('div');
+                        messageDiv.classList.add('message', 'assistant-message');
+                        messageDiv.appendChild(playButton);
+                        chatContainer.appendChild(messageDiv);
+                        chatContainer.scrollTop = chatContainer.scrollHeight;
+                    }
                 } else {
                     console.error('TTS failed:', response.status, await response.text());
                     addMessage('❌ Voice synthesis failed', 'system');
