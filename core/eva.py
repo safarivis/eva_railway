@@ -28,7 +28,10 @@ from integrations.zep_memory import ZepMemoryManager
 from integrations.zep_context_manager import ContextualMemoryManager, MemoryContext, AgentMode
 from integrations.elevenlabs_integration import ElevenLabsIntegration
 from integrations.speechrecognition_stt import SpeechRecognitionSTT as WhisperSTT
-from integrations.local_stt_handler import get_local_stt
+try:
+    from integrations.local_stt_handler import get_local_stt
+except ImportError:
+    get_local_stt = None
 from integrations.private_context_auth import PrivateContextAuth
 from voice.realtime_voice import get_voice_manager, RealTimeVoiceManager
 from voice.eva_voice_workflow import EVAVoiceWorkflow
