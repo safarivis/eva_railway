@@ -22,7 +22,7 @@
             --text-color: #e0e0e0;
             --chat-bg: #2d2d2d;
             --border-color: #404040;
-            --user-msg-bg: #0d47a1;
+            --user-msg-bg: #333333;
             --assistant-msg-bg: #404040;
             --input-bg: #2d2d2d;
             --button-bg: #1976d2;
@@ -84,7 +84,7 @@
             border-bottom-right-radius: 5px;
             text-align: right;
             align-self: flex-end;
-            color: white;
+            color: var(--text-color);
         }
         .assistant-message {
             background-color: var(--assistant-msg-bg);
@@ -206,6 +206,7 @@
         <button class="file-button" onclick="document.getElementById('image-input').click()">📷 Images</button>
         
         <button class="file-button" id="voice-button" onclick="toggleVoiceRecording()">🎤 Voice</button>
+        <button class="file-button" id="tts-toggle" onclick="toggleTTS()">🔊 Voice On</button>
         <input type="file" id="audio-input" class="file-input" accept="audio/*">
         <button class="file-button" onclick="document.getElementById('audio-input').click()">📁 Audio File</button>
     </div>
@@ -406,6 +407,9 @@
                                         currentAssistantMessage.textContent = data.message.content;
                                     }
                                     
+                                    // Play TTS for complete message
+                                    playTTS(data.message.content);
+                                    
                                     // Reset for next message
                                     currentAssistantMessage = null;
                                     assistantResponse = '';
@@ -506,6 +510,9 @@
         const themeToggle = document.querySelector('.theme-toggle');
         themeToggle.textContent = savedTheme === 'dark' ? '☀️ Light' : '🌙 Dark';
         
+        // Initialize TTS state
+        initializeTTS();
+        
         // File upload handlers
         document.getElementById('image-input').addEventListener('change', function(e) {
             const files = Array.from(e.target.files);
@@ -528,6 +535,10 @@
         let mediaRecorder;
         let audioChunks = [];
         let isRecording = false;
+        
+        // TTS functionality
+        let ttsEnabled = localStorage.getItem('ttsEnabled') !== 'false';
+        let currentAudio = null;
         
         async function toggleVoiceRecording() {
             const voiceButton = document.getElementById('voice-button');
@@ -614,6 +625,79 @@
             messageDiv.textContent = content;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // TTS toggle functionality
+        function toggleTTS() {
+            const ttsButton = document.getElementById('tts-toggle');
+            ttsEnabled = !ttsEnabled;
+            
+            if (ttsEnabled) {
+                ttsButton.textContent = '🔊 Voice On';
+                ttsButton.style.backgroundColor = '';
+                localStorage.setItem('ttsEnabled', 'true');
+            } else {
+                ttsButton.textContent = '🔇 Voice Off';
+                ttsButton.style.backgroundColor = '#666';
+                localStorage.setItem('ttsEnabled', 'false');
+                
+                // Stop any currently playing audio
+                if (currentAudio) {
+                    currentAudio.pause();
+                    currentAudio = null;
+                }
+            }
+        }
+        
+        // Initialize TTS toggle state
+        function initializeTTS() {
+            const ttsButton = document.getElementById('tts-toggle');
+            if (ttsEnabled) {
+                ttsButton.textContent = '🔊 Voice On';
+            } else {
+                ttsButton.textContent = '🔇 Voice Off';
+                ttsButton.style.backgroundColor = '#666';
+            }
+        }
+        
+        // Play TTS for assistant messages
+        async function playTTS(text) {
+            if (!ttsEnabled || !text) return;
+            
+            try {
+                // Stop any currently playing audio
+                if (currentAudio) {
+                    currentAudio.pause();
+                }
+                
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        voice_id: 'default'
+                    })
+                });
+                
+                if (response.ok) {
+                    const audioBlob = await response.blob();
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    currentAudio = new Audio(audioUrl);
+                    
+                    currentAudio.onended = () => {
+                        URL.revokeObjectURL(audioUrl);
+                        currentAudio = null;
+                    };
+                    
+                    await currentAudio.play();
+                } else {
+                    console.error('TTS failed:', response.status);
+                }
+            } catch (error) {
+                console.error('TTS error:', error);
+            }
         }
     </script>
 </body>
