@@ -54,24 +54,23 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            background: var(--button-bg);
-            color: var(--button-text);
-            border: none;
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            width: 40px;
+            height: 40px;
             cursor: pointer;
-            font-size: 18px;
-            transition: all 0.2s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
             z-index: 1000;
             display: flex;
             align-items: center;
             justify-content: center;
+            color: var(--text-color);
         }
         .theme-toggle:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
         }
         .chat-container {
             height: 60vh;
@@ -127,13 +126,15 @@
         }
         button {
             padding: 12px 24px;
-            background-color: var(--button-bg);
-            color: var(--button-text);
-            border: none;
-            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            color: var(--text-color);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
             cursor: pointer;
             font-size: 16px;
-            transition: background-color 0.3s;
+            font-weight: 500;
+            transition: all 0.3s ease;
         }
         .upload-container {
             display: flex;
@@ -145,34 +146,36 @@
             display: none;
         }
         .file-button {
-            padding: 6px 8px;
-            font-size: 16px;
-            background-color: var(--assistant-msg-bg);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            border-radius: 20px;
-            min-width: 36px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            width: 36px;
             height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
+            color: var(--text-color);
+            cursor: pointer;
         }
         .file-button:hover {
-            opacity: 0.8;
-            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
         }
         .file-button.active {
-            background-color: var(--button-bg);
-            color: var(--button-text);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #3b82f6;
         }
         .file-button.disabled {
-            background-color: #666;
-            opacity: 0.6;
+            background: rgba(255, 255, 255, 0.05);
+            color: #666;
+            opacity: 0.5;
         }
         button:hover {
-            opacity: 0.8;
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
         }
         button:disabled {
             background-color: #cccccc;
@@ -224,7 +227,11 @@
     </style>
 </head>
 <body>
-    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">🌙</button>
+    <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
     <header>
         <h1>Eva</h1>
     </header>
@@ -235,12 +242,36 @@
     
     <div class="upload-container">
         <input type="file" id="image-input" class="file-input" accept="image/*" multiple>
-        <button class="file-button" onclick="document.getElementById('image-input').click()" title="Upload Images">📷</button>
+        <button class="file-button" onclick="document.getElementById('image-input').click()" title="Upload Images">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="9" cy="9" r="2"/>
+                <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+            </svg>
+        </button>
         
-        <button class="file-button" id="voice-button" onclick="toggleVoiceRecording()" title="Voice Message">🎤</button>
-        <button class="file-button" id="tts-toggle" onclick="toggleTTS()" title="Toggle Voice Response">🔊</button>
+        <button class="file-button" id="voice-button" onclick="toggleVoiceRecording()" title="Voice Message">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+        </button>
+        <button class="file-button" id="tts-toggle" onclick="toggleTTS()" title="Toggle Voice Response">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+            </svg>
+        </button>
         <input type="file" id="audio-input" class="file-input" accept="audio/*">
-        <button class="file-button" onclick="document.getElementById('audio-input').click()" title="Upload Audio File">📁</button>
+        <button class="file-button" onclick="document.getElementById('audio-input').click()" title="Upload Audio File">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                <polyline points="14,2 14,8 20,8"/>
+            </svg>
+        </button>
     </div>
     
     <div class="input-container">
@@ -527,12 +558,24 @@
             
             if (body.dataset.theme === 'dark') {
                 body.dataset.theme = 'light';
-                themeToggle.textContent = '🌙';
+                themeToggle.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                </svg>`;
                 themeToggle.title = 'Switch to Dark Mode';
                 localStorage.setItem('theme', 'light');
             } else {
                 body.dataset.theme = 'dark';
-                themeToggle.textContent = '☀️';
+                themeToggle.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 1v2"/>
+                    <path d="M12 21v2"/>
+                    <path d="M4.22 4.22l1.42 1.42"/>
+                    <path d="M18.36 18.36l1.42 1.42"/>
+                    <path d="M1 12h2"/>
+                    <path d="M21 12h2"/>
+                    <path d="M4.22 19.78l1.42-1.42"/>
+                    <path d="M18.36 5.64l1.42-1.42"/>
+                </svg>`;
                 themeToggle.title = 'Switch to Light Mode';
                 localStorage.setItem('theme', 'dark');
             }
@@ -543,10 +586,22 @@
         document.body.dataset.theme = savedTheme;
         const themeToggle = document.querySelector('.theme-toggle');
         if (savedTheme === 'dark') {
-            themeToggle.textContent = '☀️';
+            themeToggle.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="5"/>
+                <path d="M12 1v2"/>
+                <path d="M12 21v2"/>
+                <path d="M4.22 4.22l1.42 1.42"/>
+                <path d="M18.36 18.36l1.42 1.42"/>
+                <path d="M1 12h2"/>
+                <path d="M21 12h2"/>
+                <path d="M4.22 19.78l1.42-1.42"/>
+                <path d="M18.36 5.64l1.42-1.42"/>
+            </svg>`;
             themeToggle.title = 'Switch to Light Mode';
         } else {
-            themeToggle.textContent = '🌙';
+            themeToggle.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>`;
             themeToggle.title = 'Switch to Dark Mode';
         }
         
@@ -603,8 +658,12 @@
                     
                     mediaRecorder.start();
                     isRecording = true;
-                    voiceButton.textContent = '⏹️';
-                    voiceButton.style.backgroundColor = '#ff4444';
+                    voiceButton.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="6" y="6" width="12" height="12" rx="2"/>
+                    </svg>`;
+                    voiceButton.style.background = 'rgba(239, 68, 68, 0.2)';
+                    voiceButton.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                    voiceButton.style.color = '#ef4444';
                     voiceButton.title = 'Stop Recording';
                     addMessage('🎤 Recording...', 'system');
                     
@@ -615,8 +674,15 @@
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
-                voiceButton.textContent = '🎤';
-                voiceButton.style.backgroundColor = '';
+                voiceButton.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+                    <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                    <line x1="12" y1="19" x2="12" y2="23"/>
+                    <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>`;
+                voiceButton.style.background = '';
+                voiceButton.style.borderColor = '';
+                voiceButton.style.color = '';
                 voiceButton.title = 'Voice Message';
             }
         }
@@ -675,14 +741,22 @@
             ttsEnabled = !ttsEnabled;
             
             if (ttsEnabled) {
-                ttsButton.textContent = '🔊';
+                ttsButton.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                </svg>`;
                 ttsButton.classList.remove('disabled');
                 ttsButton.classList.add('active');
                 ttsButton.title = 'Voice ON - Click to disable';
                 localStorage.setItem('ttsEnabled', 'true');
                 addMessage('🔊 Voice responses enabled', 'system');
             } else {
-                ttsButton.textContent = '🔇';
+                ttsButton.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <line x1="23" y1="9" x2="17" y2="15"/>
+                    <line x1="17" y1="9" x2="23" y2="15"/>
+                </svg>`;
                 ttsButton.classList.remove('active');
                 ttsButton.classList.add('disabled');
                 ttsButton.title = 'Voice OFF - Click to enable';
@@ -701,11 +775,19 @@
         function initializeTTS() {
             const ttsButton = document.getElementById('tts-toggle');
             if (ttsEnabled) {
-                ttsButton.textContent = '🔊';
+                ttsButton.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                    <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                </svg>`;
                 ttsButton.classList.add('active');
                 ttsButton.title = 'Voice ON - Click to disable';
             } else {
-                ttsButton.textContent = '🔇';
+                ttsButton.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                    <line x1="23" y1="9" x2="17" y2="15"/>
+                    <line x1="17" y1="9" x2="23" y2="15"/>
+                </svg>`;
                 ttsButton.classList.add('disabled');
                 ttsButton.title = 'Voice OFF - Click to enable';
             }
