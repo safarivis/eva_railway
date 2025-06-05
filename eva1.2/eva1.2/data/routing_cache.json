@@ -1,0 +1,50 @@
+{
+  "send email about meeting": {
+    "assistant_name": "email_specialist",
+    "confidence": 0.9,
+    "reasoning": "Task contains email/communication keywords",
+    "fallback_assistants": [
+      "personal_assistant"
+    ]
+  },
+  "debug python code": {
+    "assistant_name": "coding_specialist",
+    "confidence": 0.9,
+    "reasoning": "Task contains programming/development keywords",
+    "fallback_assistants": [
+      "research_analyst"
+    ]
+  },
+  "play relaxing music": {
+    "assistant_name": "music_curator",
+    "confidence": 0.9,
+    "reasoning": "Task contains music/audio keywords",
+    "fallback_assistants": [
+      "personal_assistant"
+    ]
+  },
+  "research market trends": {
+    "assistant_name": "research_analyst",
+    "confidence": 0.8,
+    "reasoning": "Task contains research/analysis keywords",
+    "fallback_assistants": [
+      "creative_director"
+    ]
+  },
+  "schedule appointment": {
+    "assistant_name": "email_specialist",
+    "confidence": 0.9,
+    "reasoning": "Task contains email/communication keywords",
+    "fallback_assistants": [
+      "personal_assistant"
+    ]
+  },
+  "create marketing content": {
+    "assistant_name": "creative_director",
+    "confidence": 0.8,
+    "reasoning": "Task contains creative/content keywords",
+    "fallback_assistants": [
+      "research_analyst"
+    ]
+  }
+}

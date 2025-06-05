@@ -1,0 +1,26 @@
+# GIT SAFETY CONFIGURATION
+# CRITICAL: This repository deploys to PRODUCTION EVA WEB
+# DO NOT CONFUSE WITH OTHER REPOSITORIES!
+
+REPOSITORY_NAME=eva_web
+REPOSITORY_URL=https://github.com/safarivis/eva_web.git
+DEPLOYMENT_URL=https://evaweb-production.up.railway.app
+DEPLOYMENT_SERVICE=Railway Production
+
+# What this repo is for:
+PURPOSE=Main EVA web application (chat interface)
+MAIN_COMMAND=python core/eva.py
+
+# What this repo is NOT:
+NOT_FOR_REALTIME_APP=true
+NOT_FOR_EXPERIMENTS=true
+NOT_FOR_ASSISTANTS_API=true
+
+# Related but SEPARATE repositories:
+REALTIME_APP_REPO=https://github.com/safarivis/eva_realtime (DIFFERENT REPO!)
+EXPERIMENTAL_REPO=https://github.com/safarivis/eva_experiments (DIFFERENT REPO!)
+
+# Safety checks before ANY push:
+REQUIRE_CONFIRMATION=true
+CHECK_DEPLOYMENT_TARGET=true
+VERIFY_WORKING_STATE=true

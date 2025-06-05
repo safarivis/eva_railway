@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVA • Chat Template</title>
+    <link rel="stylesheet" href="eva_theme.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="eva-flex eva-flex-between" style="position: fixed; top: 20px; left: 20px; right: 20px; z-index: 100;">
+        <a href="/dashboard" class="eva-btn eva-btn-small">📊 Dashboard</a>
+        <a href="/settings" class="eva-btn eva-btn-small">⚙️ Settings</a>
+    </nav>
+
+    <div class="eva-container">
+        <!-- Header -->
+        <div class="eva-text-center eva-mb-8">
+            <h1 class="eva-title-large">EVA</h1>
+            <p class="eva-caption">Your AI Assistant</p>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="eva-status-bar">
+            <div class="eva-status-indicator" id="statusIndicator"></div>
+            <div class="eva-status-text" id="statusText">Connecting...</div>
+        </div>
+
+        <!-- Controls (optional - can be hidden for auto-start) -->
+        <div class="eva-flex eva-flex-center eva-gap-2 eva-mb-5" style="display: none;">
+            <button id="startBtn" class="eva-btn eva-btn-primary">Start Session</button>
+            <button id="endBtn" class="eva-btn">End Session</button>
+        </div>
+
+        <!-- Voice Toggles -->
+        <div class="eva-flex eva-flex-center eva-gap-3 eva-mb-5">
+            <div class="eva-toggle" id="listeningToggle">
+                <div class="eva-toggle-switch" id="listeningSwitch"></div>
+                <div class="eva-toggle-label">🎤 Voice Input</div>
+            </div>
+            <div class="eva-toggle" id="responseToggle">
+                <div class="eva-toggle-switch" id="responseSwitch"></div>
+                <div class="eva-toggle-label">🔊 Voice Output</div>
+            </div>
+        </div>
+
+        <!-- Chat Container -->
+        <div class="eva-chat-container">
+            <div class="eva-messages" id="messages">
+                <div class="eva-message system">
+                    Welcome to EVA. Connecting...
+                </div>
+            </div>
+            
+            <div class="eva-input-container">
+                <input type="text" class="eva-input eva-message-input" id="messageInput" placeholder="Type your message..." disabled>
+                <button class="eva-btn" id="sendBtn" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Stats (optional) -->
+    <div class="eva-card" style="position: fixed; top: 20px; right: 20px; width: 200px; font-size: 0.8rem;">
+        <h3 class="eva-caption eva-mb-2">SESSION</h3>
+        <div class="eva-flex eva-flex-between eva-mb-1">
+            <span class="eva-caption">Status:</span>
+            <span id="sessionStatus">Disconnected</span>
+        </div>
+        <div class="eva-flex eva-flex-between eva-mb-1">
+            <span class="eva-caption">Cost:</span>
+            <span id="sessionCost">$0.00</span>
+        </div>
+        <div class="eva-flex eva-flex-between">
+            <span class="eva-caption">Duration:</span>
+            <span id="sessionDuration">0s</span>
+        </div>
+    </div>
+
+    <script>
+        // EVA Chat Interface JavaScript Template
+        class EVAChatInterface {
+            constructor() {
+                this.sessionActive = false;
+                this.messageBuffer = '';
+                this.voiceEnabled = false;
+                this.isListening = false;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.initializeVoiceRecognition();
+            }
+            
+            initializeElements() {
+                this.statusIndicator = document.getElementById('statusIndicator');
+                this.statusText = document.getElementById('statusText');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendBtn = document.getElementById('sendBtn');
+                this.messages = document.getElementById('messages');
+                
+                this.listeningToggle = document.getElementById('listeningToggle');
+                this.listeningSwitch = document.getElementById('listeningSwitch');
+                this.responseToggle = document.getElementById('responseToggle');
+                this.responseSwitch = document.getElementById('responseSwitch');
+            }
+            
+            setupEventListeners() {
+                this.sendBtn.addEventListener('click', () => this.sendMessage());
+                this.messageInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.sendMessage();
+                });
+                
+                this.listeningToggle.addEventListener('click', () => this.toggleVoiceListening());
+                this.responseToggle.addEventListener('click', () => this.toggleVoiceResponse());
+            }
+            
+            initializeVoiceRecognition() {
+                // Voice recognition setup
+                if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    this.recognition = new SpeechRecognition();
+                    this.recognition.continuous = true;
+                    this.recognition.interimResults = true;
+                    this.recognition.lang = 'en-US';
+                    
+                    this.recognition.onresult = (event) => {
+                        let finalTranscript = '';
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            if (event.results[i].isFinal) {
+                                finalTranscript += event.results[i][0].transcript;
+                            }
+                        }
+                        
+                        if (finalTranscript.trim()) {
+                            this.sendVoiceMessage(finalTranscript.trim());
+                        }
+                    };
+                }
+            }
+            
+            addMessage(type, text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `eva-message ${type}`;
+                messageDiv.textContent = text;
+                
+                this.messages.appendChild(messageDiv);
+                this.messages.scrollTop = this.messages.scrollHeight;
+            }
+            
+            sendMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message || !this.sessionActive) return;
+                
+                this.addMessage('user', message);
+                this.messageInput.value = '';
+                
+                // Send to EVA (implement your WebSocket/API logic here)
+                this.sendToEVA(message);
+            }
+            
+            sendVoiceMessage(transcript) {
+                if (!this.sessionActive) return;
+                this.sendToEVA(transcript);
+            }
+            
+            sendToEVA(message) {
+                // Implement your EVA communication logic here
+                console.log('Sending to EVA:', message);
+                
+                // Simulate EVA response
+                setTimeout(() => {
+                    this.addMessage('eva', 'This is a simulated response. Implement your EVA integration here.');
+                }, 1000);
+            }
+            
+            toggleVoiceListening() {
+                if (!this.sessionActive) {
+                    this.addMessage('system', 'Start a session first to enable voice input');
+                    return;
+                }
+                
+                if (!this.recognition) {
+                    this.addMessage('system', 'Voice recognition not available');
+                    return;
+                }
+                
+                if (this.isListening) {
+                    this.recognition.stop();
+                    this.isListening = false;
+                    this.listeningSwitch.classList.remove('active');
+                    this.listeningToggle.classList.remove('enabled');
+                    this.addMessage('system', '🎤 Voice input disabled');
+                } else {
+                    this.recognition.start();
+                    this.isListening = true;
+                    this.listeningSwitch.classList.add('active');
+                    this.listeningToggle.classList.add('enabled');
+                    this.addMessage('system', '🎤 Voice input enabled');
+                }
+            }
+            
+            toggleVoiceResponse() {
+                if (!this.sessionActive) {
+                    this.addMessage('system', 'Start a session first to enable voice output');
+                    return;
+                }
+                
+                if (this.voiceEnabled) {
+                    this.voiceEnabled = false;
+                    this.responseSwitch.classList.remove('active');
+                    this.responseToggle.classList.remove('enabled');
+                    this.addMessage('system', '🔊 Voice output disabled');
+                } else {
+                    this.voiceEnabled = true;
+                    this.responseSwitch.classList.add('active');
+                    this.responseToggle.classList.add('enabled');
+                    this.addMessage('system', '🔊 Voice output enabled');
+                }
+            }
+            
+            updateConnectionStatus(connected) {
+                if (connected) {
+                    this.statusIndicator.classList.remove('disconnected');
+                    this.statusText.textContent = 'Connected';
+                    this.sessionActive = true;
+                    this.messageInput.disabled = false;
+                    this.sendBtn.disabled = false;
+                } else {
+                    this.statusIndicator.classList.add('disconnected');
+                    this.statusText.textContent = 'Disconnected';
+                    this.sessionActive = false;
+                    this.messageInput.disabled = true;
+                    this.sendBtn.disabled = true;
+                }
+            }
+        }
+        
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const chat = new EVAChatInterface();
+            
+            // Auto-connect (simulate)
+            setTimeout(() => {
+                chat.updateConnectionStatus(true);
+                chat.addMessage('system', 'Session started. You can now chat with EVA.');
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

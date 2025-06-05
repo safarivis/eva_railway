@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EVA • Dashboard Template</title>
+    <link rel="stylesheet" href="eva_theme.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <div class="eva-flex eva-flex-between" style="position: fixed; top: 20px; left: 20px; right: 20px; z-index: 100;">
+        <a href="/" class="eva-btn eva-btn-small">← Chat</a>
+        <a href="/settings" class="eva-btn eva-btn-small">⚙️ Settings</a>
+    </div>
+
+    <div class="eva-container">
+        <!-- Header -->
+        <div class="eva-text-center eva-mb-8">
+            <h1 class="eva-title-large">Dashboard</h1>
+            <p class="eva-caption">Monitoring and analytics</p>
+        </div>
+
+        <!-- Grid Layout -->
+        <div class="eva-grid">
+            <!-- Cost Overview -->
+            <div class="eva-card">
+                <h3 class="eva-title-small">💰 Cost Overview</h3>
+                <div id="costLoading" class="eva-text-center eva-p-3">
+                    <div class="eva-loading-spinner"></div>
+                    Loading data...
+                </div>
+                <div id="costOverview" style="display: none;">
+                    <div class="eva-metrics">
+                        <div class="eva-metric">
+                            <div class="eva-metric-value" id="dailyCost">$0.00</div>
+                            <div class="eva-metric-label">Today</div>
+                        </div>
+                        <div class="eva-metric">
+                            <div class="eva-metric-value" id="remainingBudget">$0.00</div>
+                            <div class="eva-metric-label">Remaining</div>
+                        </div>
+                        <div class="eva-metric">
+                            <div class="eva-metric-value" id="dailySessions">0</div>
+                            <div class="eva-metric-label">Sessions</div>
+                        </div>
+                        <div class="eva-metric">
+                            <div class="eva-metric-value" id="avgCostPerSession">$0.00</div>
+                            <div class="eva-metric-label">Avg Cost</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Budget Status -->
+            <div class="eva-card">
+                <h3 class="eva-title-small">📊 Budget Status</h3>
+                <div class="eva-metric">
+                    <div class="eva-metric-value" id="budgetUsage">0%</div>
+                    <div class="eva-metric-label">Daily Usage</div>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div style="width: 100%; height: 8px; background: var(--eva-border-2); border-radius: 4px; overflow: hidden; margin: var(--eva-space-2) 0;">
+                    <div id="budgetBar" style="height: 100%; background: var(--eva-glass-5); border-radius: 4px; transition: width 0.3s ease; width: 0%;"></div>
+                </div>
+                
+                <!-- Email Reports -->
+                <div style="margin-top: var(--eva-space-3);">
+                    <h4 class="eva-caption eva-mb-2">📧 Email Reports</h4>
+                    <div class="eva-flex eva-gap-2">
+                        <input type="email" id="emailInput" class="eva-input" placeholder="your@email.com" style="flex: 1;">
+                        <button class="eva-btn eva-btn-small" onclick="setupEmailReports()">Setup</button>
+                    </div>
+                    <div id="emailStatus" class="eva-caption eva-mt-1"></div>
+                </div>
+            </div>
+
+            <!-- Live Activity -->
+            <div class="eva-card">
+                <h3 class="eva-title-small">⚡ Live Activity</h3>
+                <div class="eva-metric">
+                    <div class="eva-metric-value" id="activeSessions">0</div>
+                    <div class="eva-metric-label">Active Sessions</div>
+                </div>
+                <div id="liveSessionsList" style="margin-top: var(--eva-space-2);">
+                    <div class="eva-caption">No active sessions</div>
+                </div>
+            </div>
+
+            <!-- Usage Chart -->
+            <div class="eva-card">
+                <h3 class="eva-title-small">📈 Usage Trends</h3>
+                <div class="eva-caption eva-mb-2">
+                    ℹ️ Simulated data for demonstration
+                </div>
+                <div style="height: 200px; margin-top: var(--eva-space-2); background: var(--eva-glass-1); border-radius: 12px; padding: var(--eva-space-2);">
+                    <canvas id="usageChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Sessions -->
+            <div class="eva-card">
+                <h3 class="eva-title-small">🕒 Recent Sessions</h3>
+                <div id="sessionsLoading" class="eva-text-center eva-p-3">
+                    <div class="eva-loading-spinner"></div>
+                    Loading sessions...
+                </div>
+                <div id="sessionsList" style="display: none; max-height: 300px; overflow-y: auto;">
+                    <!-- Sessions populated here -->
+                </div>
+            </div>
+
+            <!-- System Logs -->
+            <div class="eva-card eva-card-full-width">
+                <h3 class="eva-title-small">🔍 System Logs</h3>
+                
+                <!-- Log Controls -->
+                <div class="eva-flex eva-gap-2 eva-mb-2" style="align-items: center;">
+                    <select id="logLevelFilter" class="eva-select">
+                        <option value="">All Levels</option>
+                        <option value="ERROR">Errors Only</option>
+                        <option value="WARNING">Warnings</option>
+                        <option value="INFO">Info</option>
+                    </select>
+                    <input type="text" id="logSearchFilter" class="eva-input" placeholder="Search logs..." style="flex: 1;">
+                    <button class="eva-btn eva-btn-small" onclick="clearLogs()">Clear</button>
+                </div>
+                
+                <!-- Log Container -->
+                <div style="height: 300px; background: var(--eva-glass-1); border: 1px solid var(--eva-border-2); border-radius: 8px; overflow: hidden;">
+                    <div id="logsDisplay" class="eva-code" style="height: 100%; overflow-y: auto; padding: 0;">
+                        <div class="eva-text-center eva-p-3">
+                            <div class="eva-loading-spinner"></div>
+                            Loading logs...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refresh Button -->
+    <button class="eva-btn" onclick="refreshDashboard()" title="Refresh" style="position: fixed; bottom: 20px; right: 20px; width: 48px; height: 48px; border-radius: 50%; padding: 0;">
+        🔄
+    </button>
+
+    <script>
+        // EVA Dashboard JavaScript Template
+        class EVADashboard {
+            constructor() {
+                this.usageChart = null;
+                this.logs = [];
+                this.filteredLogs = [];
+                
+                this.initializeChart();
+                this.loadDashboardData();
+                this.startAutoRefresh();
+                this.setupLogFilters();
+            }
+
+            async loadDashboardData() {
+                try {
+                    // Simulate API call - replace with your actual endpoint
+                    const response = await fetch('/api/dashboard');
+                    const data = await response.json();
+
+                    if (data.error) {
+                        console.error('Dashboard error:', data.error);
+                        return;
+                    }
+
+                    this.updateCostOverview(data.cost_summary);
+                    this.updateSessionHistory(data.session_history || []);
+                    this.updateBudgetStatus(data.cost_summary);
+                    this.updateLiveActivity(data.active_sessions);
+                    this.updateChart(data.usage_trends || []);
+
+                } catch (error) {
+                    console.error('Failed to load dashboard data:', error);
+                    // Show demo data instead
+                    this.showDemoData();
+                }
+            }
+
+            showDemoData() {
+                // Demo data for template
+                const demoData = {
+                    cost_summary: {
+                        totals: { cost: 0.24, sessions: 3 },
+                        remaining: { cost: 9.76 },
+                        limits: { max_cost_per_day: 10.0 }
+                    },
+                    session_history: [
+                        { start_time: new Date().toISOString(), session_id: 'demo123', duration_seconds: 45, cost: 0.08 },
+                        { start_time: new Date(Date.now() - 3600000).toISOString(), session_id: 'demo456', duration_seconds: 120, cost: 0.16 }
+                    ],
+                    active_sessions: { active_count: 0, sessions: {} },
+                    usage_trends: []
+                };
+
+                this.updateCostOverview(demoData.cost_summary);
+                this.updateSessionHistory(demoData.session_history);
+                this.updateBudgetStatus(demoData.cost_summary);
+                this.updateLiveActivity(demoData.active_sessions);
+            }
+
+            updateCostOverview(costSummary) {
+                const daily = costSummary.totals;
+                const remaining = costSummary.remaining;
+
+                document.getElementById('dailyCost').textContent = `$${daily.cost.toFixed(4)}`;
+                document.getElementById('remainingBudget').textContent = `$${remaining.cost.toFixed(2)}`;
+                document.getElementById('dailySessions').textContent = daily.sessions;
+                
+                const avgCost = daily.sessions > 0 ? daily.cost / daily.sessions : 0;
+                document.getElementById('avgCostPerSession').textContent = `$${avgCost.toFixed(4)}`;
+
+                document.getElementById('costLoading').style.display = 'none';
+                document.getElementById('costOverview').style.display = 'block';
+            }
+
+            updateBudgetStatus(costSummary) {
+                const usage = (costSummary.totals.cost / costSummary.limits.max_cost_per_day) * 100;
+                const usageRounded = Math.min(usage, 100);
+
+                document.getElementById('budgetUsage').textContent = `${usageRounded.toFixed(1)}%`;
+                document.getElementById('budgetBar').style.width = `${usageRounded}%`;
+            }
+
+            updateSessionHistory(sessions) {
+                const container = document.getElementById('sessionsList');
+                
+                if (sessions.length === 0) {
+                    container.innerHTML = '<div class="eva-text-center eva-p-3 eva-caption">No sessions today</div>';
+                } else {
+                    container.innerHTML = sessions.map(session => `
+                        <div class="eva-flex eva-flex-between eva-p-2" style="border-bottom: 1px solid var(--eva-border-1);">
+                            <div>
+                                <div class="eva-body">${new Date(session.start_time).toLocaleTimeString()}</div>
+                                <div class="eva-caption">
+                                    ${session.session_id.substring(0, 8)}... • ${session.duration_seconds}s
+                                </div>
+                            </div>
+                            <div class="eva-body">$${session.cost.toFixed(4)}</div>
+                        </div>
+                    `).join('');
+                }
+
+                document.getElementById('sessionsLoading').style.display = 'none';
+                container.style.display = 'block';
+            }
+
+            updateLiveActivity(activeSessions) {
+                document.getElementById('activeSessions').textContent = activeSessions.active_count;
+                
+                const container = document.getElementById('liveSessionsList');
+                if (activeSessions.active_count === 0) {
+                    container.innerHTML = '<div class="eva-caption">No active sessions</div>';
+                } else {
+                    container.innerHTML = Object.entries(activeSessions.sessions).map(([id, session]) => `
+                        <div class="eva-p-2" style="background: var(--eva-glass-2); border-radius: 8px; margin-bottom: var(--eva-space-1);">
+                            <div class="eva-body eva-mb-1">
+                                ${id.substring(0, 12)}...
+                            </div>
+                            <div class="eva-caption">
+                                $${session.cost.toFixed(4)} • ${session.duration_seconds}s
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            initializeChart() {
+                const ctx = document.getElementById('usageChart').getContext('2d');
+                this.usageChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'Hourly Cost',
+                            data: [],
+                            borderColor: 'rgba(255, 255, 255, 0.6)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                            borderWidth: 1,
+                            fill: true,
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { color: '#888', font: { size: 10 } }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                ticks: { 
+                                    color: '#888',
+                                    font: { size: 10 },
+                                    callback: value => '$' + value.toFixed(3)
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            updateChart(trendData) {
+                if (this.usageChart && trendData.length > 0) {
+                    this.usageChart.data.labels = trendData.map(point => point.hour);
+                    this.usageChart.data.datasets[0].data = trendData.map(point => point.cost);
+                    this.usageChart.update();
+                }
+            }
+
+            setupLogFilters() {
+                document.getElementById('logLevelFilter').addEventListener('change', () => {
+                    this.applyLogFilters();
+                    this.renderLogs();
+                });
+                
+                document.getElementById('logSearchFilter').addEventListener('input', () => {
+                    this.applyLogFilters();
+                    this.renderLogs();
+                });
+            }
+
+            async loadLogs() {
+                try {
+                    const response = await fetch('/api/logs');
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        console.error('Error loading logs:', data.error);
+                        return;
+                    }
+                    
+                    this.logs = data.logs || [];
+                    this.applyLogFilters();
+                    this.renderLogs();
+                    
+                } catch (error) {
+                    console.error('Failed to load logs:', error);
+                    document.getElementById('logsDisplay').innerHTML = '<div class="eva-text-center eva-p-3 eva-caption">Failed to load logs</div>';
+                }
+            }
+
+            applyLogFilters() {
+                const levelFilter = document.getElementById('logLevelFilter').value;
+                const searchFilter = document.getElementById('logSearchFilter').value.toLowerCase();
+                
+                this.filteredLogs = this.logs.filter(log => {
+                    if (levelFilter && log.level !== levelFilter) return false;
+                    if (searchFilter && !log.message.toLowerCase().includes(searchFilter)) return false;
+                    return true;
+                });
+            }
+
+            renderLogs() {
+                const container = document.getElementById('logsDisplay');
+                
+                if (this.filteredLogs.length === 0) {
+                    container.innerHTML = '<div class="eva-text-center eva-p-3 eva-caption">No logs match current filters</div>';
+                    return;
+                }
+                
+                const logsHtml = this.filteredLogs.slice(-50).map(log => {
+                    const timestamp = new Date(log.timestamp).toLocaleTimeString();
+                    const sessionId = log.session_id ? log.session_id.substring(0, 8) + '...' : 'sys';
+                    
+                    return `
+                        <div style="padding: 6px 12px; border-bottom: 1px solid var(--eva-border-1); transition: background 0.2s ease; ${log.level === 'ERROR' ? 'border-left: 2px solid rgba(255,255,255,0.8); background: var(--eva-glass-1);' : ''}" onmouseover="this.style.background='var(--eva-glass-2)'" onmouseout="this.style.background='${log.level === 'ERROR' ? 'var(--eva-glass-1)' : 'transparent'}'">
+                            <span style="color: var(--eva-grey-200); margin-right: 8px;">${timestamp}</span>
+                            <span style="display: inline-block; width: 50px; text-align: center; margin-right: 8px; font-weight: 500; color: ${log.level === 'ERROR' ? 'var(--eva-white)' : log.level === 'WARNING' ? '#ccc' : '#aaa'};">${log.level}</span>
+                            <span style="color: var(--eva-grey-100); margin-right: 8px; font-style: italic;">${sessionId}</span>
+                            <span style="color: var(--eva-white);">${this.escapeHtml(log.message)}</span>
+                        </div>
+                    `;
+                }).join('');
+                
+                container.innerHTML = logsHtml;
+                container.scrollTop = container.scrollHeight;
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            startAutoRefresh() {
+                setInterval(() => {
+                    this.loadDashboardData();
+                    this.loadLogs();
+                }, 30000); // Refresh every 30 seconds
+            }
+        }
+
+        // Global functions
+        async function setupEmailReports() {
+            const email = document.getElementById('emailInput').value.trim();
+            const statusDiv = document.getElementById('emailStatus');
+            
+            if (!email) {
+                statusDiv.innerHTML = '<span style="color: var(--eva-grey-100);">Please enter email</span>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/setup-email-reports', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    statusDiv.innerHTML = '<span style="color: var(--eva-white);">✓ Reports configured</span>';
+                    document.getElementById('emailInput').value = '';
+                } else {
+                    statusDiv.innerHTML = '<span style="color: var(--eva-grey-100);">✗ Setup failed</span>';
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '<span style="color: var(--eva-grey-100);">✗ Setup failed</span>';
+            }
+        }
+
+        function clearLogs() {
+            dashboard.logs = [];
+            dashboard.filteredLogs = [];
+            dashboard.renderLogs();
+            dashboard.loadLogs();
+        }
+
+        function refreshDashboard() {
+            const btn = document.querySelector('.eva-btn[onclick="refreshDashboard()"]');
+            btn.innerHTML = '⟳';
+            btn.style.animation = 'eva-spin 1s linear infinite';
+            
+            dashboard.loadDashboardData().then(() => {
+                btn.innerHTML = '🔄';
+                btn.style.animation = '';
+            });
+        }
+
+        // Initialize dashboard
+        let dashboard;
+        document.addEventListener('DOMContentLoaded', () => {
+            dashboard = new EVADashboard();
+        });
+    </script>
+</body>
+</html>
