@@ -4,6 +4,7 @@
     "healthcheckPath": "/api/info"
   },
   "environment": {
-    "FORCE_REBUILD": "2025-06-05-eva-web-restore"
+    "PORT": "7000",
+    "FORCE_REBUILD": "2025-06-08-eva-deployment-fix"
   }
 }

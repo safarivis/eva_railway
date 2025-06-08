@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 
 # Constants
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
 OPENAI_BASE_URL = "https://api.openai.com/v1/chat/completions"
 ZEP_API_KEY = os.getenv("ZEP_API_KEY")
 ZEP_ENABLED = os.getenv("ZEP_ENABLED", "true").lower() == "true"
@@ -2404,8 +2404,8 @@ if __name__ == "__main__":
     load_dotenv(override=True)
     
     # Re-read the model
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
     print(f"Starting with model: {OPENAI_MODEL}")
     
-    port = int(os.getenv("PORT", 8000))
+    port = int(os.getenv("PORT", 7000))
     uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
