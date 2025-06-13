@@ -12,7 +12,7 @@ import os
 from datetime import datetime
 
 # Configuration
-EVA_SERVER_URL = "http://localhost:8000"
+EVA_SERVER_URL = os.getenv("EVA_SERVER_URL", "http://localhost:1234")
 USER_ID = "text_user"
 
 class Colors:
@@ -216,7 +216,7 @@ async def main():
                         print(f"{Colors.RED}Error reading image: {e}{Colors.RESET}")
                         import traceback
                         traceback.print_exc()
-                continue
+                    continue
             
             # Skip empty
             if not user_input.strip():

@@ -133,8 +133,8 @@ class ZepMemoryManager:
                     role_type=role_type
                 ))
             
-            # Use add_memory instead of add
-            await self.client.memory.add_memory(session_id, messages=zep_messages)
+            # Use add method
+            await self.client.memory.add(session_id, messages=zep_messages)
             logger.info(f"Added {len(zep_messages)} messages to session {session_id}")
             
         except Exception as e:
@@ -149,9 +149,11 @@ class ZepMemoryManager:
         
         try:
             memory = await self.client.memory.get(session_id=session_id)
-            if memory and memory.context:
+            if memory and hasattr(memory, 'summary') and memory.summary:
+                # Extract text content from Summary object
+                summary_text = getattr(memory.summary, 'content', str(memory.summary))
                 logger.info(f"Retrieved memory context for session {session_id}")
-                return memory.context
+                return summary_text
             return None
             
         except Exception as e:
@@ -172,15 +174,15 @@ class ZepMemoryManager:
                 limit=limit
             )
             
-            if results:
-                logger.info(f"Found {len(results)} memory search results")
+            if results and hasattr(results, 'results') and results.results:
+                logger.info(f"Found {len(results.results)} memory search results")
                 return [
                     {
-                        "content": r.content,
-                        "score": r.score,
-                        "metadata": r.metadata
+                        "content": getattr(r, 'content', str(r)),
+                        "score": getattr(r, 'score', 0.0),
+                        "metadata": getattr(r, 'metadata', {})
                     }
-                    for r in results
+                    for r in results.results
                 ]
             return []
             

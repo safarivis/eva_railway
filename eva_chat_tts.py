@@ -18,7 +18,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from integrations.elevenlabs_integration import ElevenLabsIntegration
 
 # Configuration
-EVA_SERVER_URL = "http://localhost:8000"
+EVA_SERVER_URL = "http://localhost:1234"
 USER_ID = "text_tts_user"
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 

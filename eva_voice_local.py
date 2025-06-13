@@ -20,7 +20,7 @@ from pathlib import Path
 SAMPLE_RATE = 16000
 CHANNELS = 1
 DURATION = 5  # Max recording duration in seconds
-EVA_SERVER_URL = "http://localhost:8000"
+EVA_SERVER_URL = "http://localhost:1234"
 
 class Colors:
     BLUE = '\033[94m'

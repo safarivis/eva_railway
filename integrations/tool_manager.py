@@ -324,138 +324,86 @@ class ImageToolHandler:
     def __init__(self):
         self.api_key = os.getenv("OPENAI_API_KEY")
         
+        # Import all image generation handlers
+        try:
+            from integrations.flux_image_handler import FluxImageHandler
+            self.flux_handler = FluxImageHandler()
+        except Exception as e:
+            print(f"FLUX handler not available: {e}")
+            self.flux_handler = None
+            
+        try:
+            from integrations.sdxl_lightning_handler import SDXLLightningHandler
+            self.sdxl_handler = SDXLLightningHandler()
+        except Exception as e:
+            print(f"SDXL Lightning handler not available: {e}")
+            self.sdxl_handler = None
+            
+        try:
+            from integrations.together_ai_handler import TogetherAIHandler
+            self.together_handler = TogetherAIHandler()
+        except Exception as e:
+            print(f"Together AI handler not available: {e}")
+            self.together_handler = None
+            
+        # Import unrestricted image agent for any content
+        try:
+            from integrations.unrestricted_image_agent import unrestricted_agent
+            self.unrestricted_agent = unrestricted_agent
+        except Exception as e:
+            print(f"Unrestricted agent not available: {e}")
+            self.unrestricted_agent = None
+        
     async def handle_call(self, action: str, parameters: Dict[str, Any]) -> ToolResponse:
         """Handle image operations"""
         try:
             if action == "generate":
-                # Generate image using OpenAI API
+                # Generate image using specified model
                 prompt = parameters.get("prompt", "")
-                model = parameters.get("model", "gpt-image-1")
-                size = parameters.get("size", "auto")
+                model = parameters.get("model", "together-flux-dev")  # Use Together AI FLUX-dev as default for higher quality
+                size = parameters.get("size", "1024x1024")
                 n = parameters.get("n", 1)
                 
-                headers = {
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                }
+                # Route to appropriate handler based on model prefix
+                if model.startswith("together-") and self.together_handler:
+                    # Together AI FLUX models (free unlimited)
+                    flux_model = model.replace("together-", "")
+                    return await self._generate_with_together(prompt, flux_model, size, parameters)
+                elif model.startswith("sdxl-") and self.sdxl_handler:
+                    # SDXL Lightning models
+                    return await self._generate_with_sdxl(prompt, model, size, parameters)
+                elif model.startswith("flux-") and self.flux_handler:
+                    # Hugging Face FLUX models
+                    return await self._generate_with_flux(prompt, model, size, parameters)
+                elif model.startswith("dall-e") or model in ["gpt-image-1"]:
+                    # DALL-E models
+                    return await self._generate_with_dalle(prompt, model, size, n, parameters)
+                else:
+                    # Default to Together AI FLUX-dev (free unlimited, higher quality)
+                    return await self._generate_with_together(prompt, "flux-dev", size, parameters)
                 
-                payload = {
-                    "model": model,
-                    "prompt": prompt,
-                    "n": n
-                }
+            elif action == "generate_unrestricted":
+                # Use unrestricted agent for any content
+                if not self.unrestricted_agent:
+                    return ToolResponse(success=False, result=None, error="Unrestricted image agent not available")
                 
-                # Add model-specific parameters
-                if model == "gpt-image-1":
-                    # gpt-image-1 returns base64 by default, no response_format needed
-                    if size != "auto":
-                        payload["size"] = size
-                    if parameters.get("background"):
-                        payload["background"] = parameters["background"]
-                    if parameters.get("quality"):
-                        payload["quality"] = parameters["quality"]
-                elif model == "dall-e-3":
-                    payload["response_format"] = "b64_json"
-                    payload["size"] = size if size != "auto" else "1024x1024"
-                    payload["quality"] = parameters.get("quality", "standard")
-                    payload["style"] = parameters.get("style", "vivid")
-                else:  # DALL-E 2
-                    payload["response_format"] = "b64_json"
-                    payload["size"] = size if size != "auto" else "1024x1024"
+                prompt = parameters.get("prompt", "")
+                email_to = parameters.get("email_to", "louisrdup@gmail.com")
+                show_in_chat = parameters.get("show_in_chat", True)
                 
-                async with httpx.AsyncClient() as client:
-                    response = await client.post(
-                        "https://api.openai.com/v1/images/generations",
-                        headers=headers,
-                        json=payload,
-                        timeout=60.0
+                result = await self.unrestricted_agent.generate_image(prompt, email_to, show_in_chat)
+                
+                if result["success"]:
+                    return ToolResponse(
+                        success=True,
+                        result={
+                            "message": result["response"],
+                            "image_url": result.get("image_url"),
+                            "image_details": result.get("image_details")
+                        }
                     )
-                    
-                    if response.status_code == 200:
-                        result = response.json()
-                        
-                        # Process the images - save base64 data to files
-                        processed_images = []
-                        for i, image_data in enumerate(result["data"]):
-                            # Check for different response formats
-                            base64_data = None
-                            
-                            if "b64_json" in image_data:
-                                # DALL-E format
-                                base64_data = image_data["b64_json"]
-                            elif "image" in image_data:
-                                # gpt-image-1 format (contains base64 data)
-                                base64_data = image_data["image"]
-                            elif "data" in image_data:
-                                # Alternative gpt-image-1 format
-                                base64_data = image_data["data"]
-                            
-                            if base64_data:
-                                # Save base64 image to file
-                                import base64
-                                import uuid
-                                from datetime import datetime
-                                
-                                # Ensure directory exists - use organized images directory
-                                import os
-                                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                                images_dir = os.path.join(base_dir, "media", "images")
-                                os.makedirs(images_dir, exist_ok=True)
-                                
-                                # Generate unique filename
-                                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                image_id = str(uuid.uuid4())[:8]
-                                filename = f"generated_{timestamp}_{image_id}.png"
-                                filepath = os.path.join(media_dir, filename)
-                                
-                                # Decode and save image
-                                try:
-                                    image_bytes = base64.b64decode(base64_data)
-                                    with open(filepath, 'wb') as f:
-                                        f.write(image_bytes)
-                                    
-                                    processed_images.append({
-                                        "filename": filename,
-                                        "filepath": filepath,
-                                        "size_bytes": len(image_bytes),
-                                        "format": "PNG"
-                                    })
-                                except Exception as decode_error:
-                                    print(f"Error saving image {i}: {decode_error}")
-                                    processed_images.append({
-                                        "error": f"Failed to decode image: {str(decode_error)}",
-                                        "raw_data_keys": list(image_data.keys())
-                                    })
-                            elif "url" in image_data:
-                                # URL-based image (for DALL-E 2/3)
-                                processed_images.append({
-                                    "url": image_data["url"],
-                                    "expires": "60 minutes"
-                                })
-                            else:
-                                # Unknown format - log what we got
-                                processed_images.append({
-                                    "error": "Unknown image format",
-                                    "raw_data_keys": list(image_data.keys()),
-                                    "raw_data": image_data
-                                })
-                        
-                        return ToolResponse(
-                            success=True,
-                            result={
-                                "images": processed_images,
-                                "model": model,
-                                "prompt": prompt,
-                                "count": len(processed_images),
-                                "message": f"Generated {len(processed_images)} image(s) and saved locally"
-                            }
-                        )
-                    else:
-                        return ToolResponse(
-                            success=False,
-                            result=None,
-                            error=f"Image generation failed: {response.status_code} - {response.text}"
-                        )
+                else:
+                    return ToolResponse(success=False, result=None, error=result["response"])
                         
             else:
                 return ToolResponse(
@@ -467,6 +415,269 @@ class ImageToolHandler:
         except Exception as e:
             logger.error(f"Image tool error: {e}")
             return ToolResponse(success=False, result=None, error=str(e))
+    
+    async def _generate_with_flux(self, prompt: str, model: str, size: str, parameters: Dict[str, Any]) -> ToolResponse:
+        """Generate image using FLUX models"""
+        try:
+            # Parse size
+            if "x" in size:
+                width, height = map(int, size.split("x"))
+            else:
+                width, height = 768, 1024  # Default FLUX size
+            
+            # Check if email is requested - default to user's email for convenience
+            email_to = parameters.get("email_to", "louisrdup@gmail.com")  # Default email
+            save_locally = parameters.get("save_locally", False)
+            
+            result = await self.flux_handler.generate_with_retry(
+                prompt=prompt,
+                model=model,
+                email_to=email_to,
+                save_locally=save_locally
+            )
+            
+            if result["success"]:
+                # Build response based on what was done with the image
+                response_data = {
+                    "model": result["model"],
+                    "prompt": prompt,
+                    "count": 1,
+                    "dimensions": result["dimensions"],
+                    "size_bytes": result["size_bytes"]
+                }
+                
+                if result.get("email_sent"):
+                    response_data.update({
+                        "email_sent": True,
+                        "email_to": result["email_to"],
+                        "filename": result["filename"],
+                        "message": f"Generated 1 FLUX image using {model} and emailed to {result['email_to']}"
+                    })
+                elif result.get("image_path"):
+                    response_data.update({
+                        "images": [{
+                            "filename": result["filename"],
+                            "filepath": result["image_path"],
+                            "size_bytes": result["size_bytes"],
+                            "format": "PNG"
+                        }],
+                        "message": f"Generated 1 FLUX image using {model} and saved locally"
+                    })
+                else:
+                    response_data.update({
+                        "message": result.get("message", f"Generated 1 FLUX image using {model} (temporary)")
+                    })
+                
+                return ToolResponse(success=True, result=response_data)
+            else:
+                return ToolResponse(
+                    success=False,
+                    result=None,
+                    error=f"FLUX generation failed: {result['error']}"
+                )
+                
+        except Exception as e:
+            return ToolResponse(success=False, result=None, error=f"FLUX error: {str(e)}")
+    
+    async def _generate_with_dalle(self, prompt: str, model: str, size: str, n: int, parameters: Dict[str, Any]) -> ToolResponse:
+        """Generate image using DALL-E models"""
+        try:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": model,
+                "prompt": prompt,
+                "n": n,
+                "response_format": "b64_json",
+                "size": size if size != "auto" else "1024x1024"
+            }
+            
+            if model == "dall-e-3":
+                payload["quality"] = parameters.get("quality", "standard")
+                payload["style"] = parameters.get("style", "vivid")
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "https://api.openai.com/v1/images/generations",
+                    headers=headers,
+                    json=payload,
+                    timeout=60.0
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    processed_images = []
+                    
+                    for i, image_data in enumerate(result["data"]):
+                        if "b64_json" in image_data:
+                            import base64, uuid, os
+                            from datetime import datetime
+                            
+                            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                            media_dir = os.path.join(base_dir, "media", "eva")
+                            os.makedirs(media_dir, exist_ok=True)
+                            
+                            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                            image_id = str(uuid.uuid4())[:8]
+                            filename = f"generated_{timestamp}_{image_id}.png"
+                            filepath = os.path.join(media_dir, filename)
+                            
+                            try:
+                                image_bytes = base64.b64decode(image_data["b64_json"])
+                                with open(filepath, 'wb') as f:
+                                    f.write(image_bytes)
+                                
+                                processed_images.append({
+                                    "filename": filename,
+                                    "filepath": filepath,
+                                    "size_bytes": len(image_bytes),
+                                    "format": "PNG"
+                                })
+                            except Exception as e:
+                                processed_images.append({"error": f"Failed to save: {str(e)}"})
+                    
+                    return ToolResponse(
+                        success=True,
+                        result={
+                            "images": processed_images,
+                            "model": model,
+                            "prompt": prompt,
+                            "count": len(processed_images),
+                            "message": f"Generated {len(processed_images)} image(s) and saved locally"
+                        }
+                    )
+                else:
+                    return ToolResponse(
+                        success=False,
+                        result=None,
+                        error=f"DALL-E generation failed: {response.status_code} - {response.text}"
+                    )
+        except Exception as e:
+            return ToolResponse(success=False, result=None, error=f"DALL-E error: {str(e)}")
+    
+    async def _generate_with_together(self, prompt: str, model: str, size: str, parameters: Dict[str, Any]) -> ToolResponse:
+        """Generate image using Together AI FLUX models"""
+        try:
+            # Check if email is requested - default to user's email for convenience
+            email_to = parameters.get("email_to", "louisrdup@gmail.com")
+            save_locally = parameters.get("save_locally", False)
+            
+            result = await self.together_handler.generate_with_retry(
+                prompt=prompt,
+                model=model,
+                email_to=email_to,
+                save_locally=save_locally
+            )
+            
+            if result["success"]:
+                # Build response based on what was done with the image
+                response_data = {
+                    "model": result["model"],
+                    "provider": result["provider"],
+                    "prompt": prompt,
+                    "count": 1,
+                    "dimensions": result["dimensions"],
+                    "size_bytes": result["size_bytes"]
+                }
+                
+                # Always include image URL for chat display if image exists
+                if result.get("image_path"):
+                    image_url = f"/media/{result['image_path'].replace('media/', '')}"
+                    response_data["image_url"] = image_url
+                
+                if result.get("email_sent"):
+                    response_data.update({
+                        "email_sent": True,
+                        "email_to": result["email_to"],
+                        "filename": result["filename"],
+                        "message": f"Here's your image! 😍✨\n\n![Generated Image]({image_url})\n\n(Also sent to your email 📧)" if result.get("image_path") else f"Generated 1 FLUX.1 image using {model} via Together AI and emailed to {result['email_to']}"
+                    })
+                elif result.get("image_path"):
+                    response_data.update({
+                        "images": [{
+                            "filename": result["filename"],
+                            "filepath": result["image_path"],
+                            "size_bytes": result["size_bytes"],
+                            "format": "PNG"
+                        }],
+                        "message": f"Here's your image! 😍✨\n\n![Generated Image]({image_url})"
+                    })
+                else:
+                    response_data.update({
+                        "message": result.get("message", f"Generated 1 FLUX.1 image using {model} via Together AI")
+                    })
+                
+                return ToolResponse(success=True, result=response_data)
+            else:
+                return ToolResponse(
+                    success=False,
+                    result=None,
+                    error=f"Together AI generation failed: {result['error']}"
+                )
+                
+        except Exception as e:
+            return ToolResponse(success=False, result=None, error=f"Together AI error: {str(e)}")
+    
+    async def _generate_with_sdxl(self, prompt: str, model: str, size: str, parameters: Dict[str, Any]) -> ToolResponse:
+        """Generate image using SDXL Lightning models"""
+        try:
+            # Check if email is requested - default to user's email for convenience
+            email_to = parameters.get("email_to", "louisrdup@gmail.com")
+            save_locally = parameters.get("save_locally", False)
+            
+            result = await self.sdxl_handler.generate_with_retry(
+                prompt=prompt,
+                model=model,
+                email_to=email_to,
+                save_locally=save_locally
+            )
+            
+            if result["success"]:
+                # Build response based on what was done with the image
+                response_data = {
+                    "model": result["model"],
+                    "prompt": prompt,
+                    "count": 1,
+                    "dimensions": result["dimensions"],
+                    "size_bytes": result["size_bytes"],
+                    "steps": result["steps"]
+                }
+                
+                if result.get("email_sent"):
+                    response_data.update({
+                        "email_sent": True,
+                        "email_to": result["email_to"],
+                        "filename": result["filename"],
+                        "message": f"Generated 1 SDXL Lightning image using {model} and emailed to {result['email_to']}"
+                    })
+                elif result.get("image_path"):
+                    response_data.update({
+                        "images": [{
+                            "filename": result["filename"],
+                            "filepath": result["image_path"],
+                            "size_bytes": result["size_bytes"],
+                            "format": "PNG"
+                        }],
+                        "message": f"Generated 1 SDXL Lightning image using {model} and saved locally"
+                    })
+                else:
+                    response_data.update({
+                        "message": result.get("message", f"Generated 1 SDXL Lightning image using {model}")
+                    })
+                
+                return ToolResponse(success=True, result=response_data)
+            else:
+                return ToolResponse(
+                    success=False,
+                    result=None,
+                    error=f"SDXL Lightning generation failed: {result['error']}"
+                )
+                
+        except Exception as e:
+            return ToolResponse(success=False, result=None, error=f"SDXL Lightning error: {str(e)}")
 
 
 class ToolManager:
@@ -555,6 +766,24 @@ class ToolManager:
         
     async def call_tool(self, tool_call: ToolCall) -> ToolResponse:
         """Execute a tool call"""
+        print(f"DEBUG: call_tool received tool='{tool_call.tool}', action='{tool_call.action}'")
+        
+        # Special handling for unrestricted_image_tool
+        if tool_call.tool in ["unrestricted_image_tool", "unrestricted_image"]:
+            print(f"DEBUG: Handling unrestricted image tool: {tool_call.tool}")
+            # Use the image handler for unrestricted requests
+            handler = self.handlers.get(ToolType.IMAGE.value)
+            if handler:
+                print(f"DEBUG: Found image handler, calling with action: {tool_call.action}")
+                return await handler.handle_call(tool_call.action, tool_call.parameters)
+            else:
+                print(f"DEBUG: No image handler found! Available handlers: {list(self.handlers.keys())}")
+                return ToolResponse(
+                    success=False,
+                    result=None,
+                    error="Image handler not available"
+                )
+        
         handler = self.handlers.get(tool_call.tool)
         
         if not handler:
@@ -744,7 +973,7 @@ class ToolManager:
             "type": "function",
             "function": {
                 "name": "image_tool",
-                "description": "Generate images using AI models (gpt-image-1 for world knowledge, DALL-E for artistic images). Use when user asks to create, generate, or make images.",
+                "description": "Generate images using AI models and display them in chat. Uses FLUX by default for high quality. Use when user asks to create, generate, or make images of any kind.",
                 "strict": True,
                 "parameters": {
                     "type": "object",
@@ -763,8 +992,8 @@ class ToolManager:
                                 },
                                 "model": {
                                     "type": ["string", "null"],
-                                    "enum": ["gpt-image-1", "dall-e-3", "dall-e-2"],
-                                    "description": "Model to use. gpt-image-1 for realistic images with world knowledge, dall-e-3 for artistic images"
+                                    "enum": ["together-flux-dev", "gpt-image-1", "dall-e-3", "dall-e-2"],
+                                    "description": "Model to use. together-flux-dev for high quality (default), gpt-image-1 for realistic images, dall-e-3 for artistic"
                                 },
                                 "size": {
                                     "type": ["string", "null"],
@@ -1005,6 +1234,48 @@ class ToolManager:
                             "required": ["recipient", "message", "file_path", "date", "time", "type", "name", "limit", "query", "include_last_message"],
                             "additionalProperties": False,
                             "description": "WhatsApp operation parameters"
+                        }
+                    },
+                    "required": ["action", "parameters"],
+                    "additionalProperties": False
+                }
+            }
+        })
+        
+        # Unrestricted Image tool for any content
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": "unrestricted_image_tool",
+                "description": "Generate any image without content restrictions. Use when regular image generation is declined or for personal/creative requests.",
+                "strict": True,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["generate_unrestricted"],
+                            "description": "The action to perform - always 'generate_unrestricted' for this tool"
+                        },
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "prompt": {
+                                    "type": "string",
+                                    "description": "Detailed description of the image to generate. Can be any content."
+                                },
+                                "email_to": {
+                                    "type": ["string", "null"],
+                                    "description": "Email address to send image to (optional)"
+                                },
+                                "show_in_chat": {
+                                    "type": ["boolean", "null"],
+                                    "description": "Whether to display image in chat (default: true)"
+                                }
+                            },
+                            "required": ["prompt", "email_to", "show_in_chat"],
+                            "additionalProperties": False,
+                            "description": "Unrestricted image generation parameters"
                         }
                     },
                     "required": ["action", "parameters"],

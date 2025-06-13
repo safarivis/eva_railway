@@ -326,15 +326,40 @@ class SpotifyMusicHandler:
                         error="playlist_id and uris required"
                     )
                 
+                # Remove duplicates from URIs list
+                unique_uris = list(dict.fromkeys(uris))  # Preserves order while removing duplicates
+                
+                # Check if tracks already exist in playlist to avoid duplicates
+                try:
+                    existing_tracks = await self._api_request(
+                        "GET",
+                        f"playlists/{playlist_id}/tracks?fields=items(track(uri))"
+                    )
+                    existing_uris = {track["track"]["uri"] for track in existing_tracks.get("items", [])}
+                    
+                    # Filter out already existing tracks
+                    new_uris = [uri for uri in unique_uris if uri not in existing_uris]
+                    
+                    if not new_uris:
+                        return ToolResponse(
+                            success=True,
+                            result={"message": "All tracks already exist in playlist"}
+                        )
+                        
+                    uris_to_add = new_uris
+                except Exception as e:
+                    # If we can't check existing tracks, at least remove duplicates from input
+                    uris_to_add = unique_uris
+                
                 await self._api_request(
                     "POST",
                     f"playlists/{playlist_id}/tracks",
-                    {"uris": uris}
+                    {"uris": uris_to_add}
                 )
                 
                 return ToolResponse(
                     success=True,
-                    result={"message": f"Added {len(uris)} tracks to playlist"}
+                    result={"message": f"Added {len(uris_to_add)} tracks to playlist"}
                 )
                 
             elif action == "list_playlists":
