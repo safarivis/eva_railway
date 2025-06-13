@@ -904,25 +904,26 @@ MANDATORY: If the user asks for "latest", "news", "current", "sources", "links" 
                     session_length = len(conversation.get("messages", []))
                     revival_chance_modifier = 0.3 if voice_enabled else 1.0  # Reduce revival frequency for TTS
                     
-                    if await conversation_revival.should_revive_memory(user_message, session_length):
-                        # Apply TTS reduction
-                        import random
-                        if random.random() < revival_chance_modifier:
-                            revival_memory = conversation_revival.get_revival_memory(user_message)
-                            
-                            if revival_memory:
-                                revival_prompt = conversation_revival.generate_revival_prompt(revival_memory)
-                                
-                                # For TTS, make revival prompts shorter
-                                if voice_enabled and len(revival_prompt) > 80:
-                                    revival_prompt = revival_prompt[:77] + "..."
-                                
-                                # Add the revival reference naturally to the response
-                                if not response_content.endswith('.') and not response_content.endswith('!'):
-                                    response_content += "."
-                                response_content += f" {revival_prompt}"
-                                
-                                print(f"DEBUG: Added conversation revival: {revival_prompt}")
+                    # DISABLED: Conversation revival causing inappropriate message additions
+                    # if await conversation_revival.should_revive_memory(user_message, session_length):
+                    #     # Apply TTS reduction
+                    #     import random
+                    #     if random.random() < revival_chance_modifier:
+                    #         revival_memory = conversation_revival.get_revival_memory(user_message)
+                    #         
+                    #         if revival_memory:
+                    #             revival_prompt = conversation_revival.generate_revival_prompt(revival_memory)
+                    #             
+                    #             # For TTS, make revival prompts shorter
+                    #             if voice_enabled and len(revival_prompt) > 80:
+                    #                 revival_prompt = revival_prompt[:77] + "..."
+                    #             
+                    #             # Add the revival reference naturally to the response
+                    #             if not response_content.endswith('.') and not response_content.endswith('!'):
+                    #                 response_content += "."
+                    #             response_content += f" {revival_prompt}"
+                    #             
+                    #             print(f"DEBUG: Added conversation revival: {revival_prompt}")
                     
                     # Periodic cleanup
                     if session_length % 20 == 0:  # Every 20 messages
